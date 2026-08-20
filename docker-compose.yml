@@ -1,0 +1,27 @@
+version: "3.8"
+
+# OnlyOffice Document Server: editor real de Word/PDF embebido en el navegador,
+# para el Gestor Documental (evita la reconstrucción de texto vía pdf.js/Quill).
+services:
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: aubasa_onlyoffice
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      # JWT desactivado para esta primera integración interna. Antes de exponer
+      # esto fuera de la red local hay que activar JWT_ENABLED=true de nuevo
+      # y firmar la config desde el backend (no desde el navegador).
+      - JWT_ENABLED=false
+      # Sin esto, OnlyOffice bloquea por SSRF cualquier callback hacia
+      # host.docker.internal (IP privada) — es lo que usa este backend local.
+      - ALLOW_PRIVATE_IP_ADDRESS=true
+      - ALLOW_META_IP_ADDRESS=true
+    volumes:
+      - aubasa_onlyoffice_data:/var/www/onlyoffice/Data
+      - aubasa_onlyoffice_log:/var/log/onlyoffice
+
+volumes:
+  aubasa_onlyoffice_data:
+  aubasa_onlyoffice_log:
