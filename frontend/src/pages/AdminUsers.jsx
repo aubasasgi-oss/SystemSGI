@@ -179,9 +179,8 @@ export default function AdminUsers() {
                       onChange={(e) => handleSectorChange(prof.id, e.target.value)}
                       style={{ padding: '6px', fontSize: '13px' }}
                     >
-                      <option value="Pendiente de Asignación">-- Pendiente de Asignación --</option>
-                      <option value="SGI">SGI</option>
-                      {SECTORES_AUBASA.map(s => <option key={s} value={s}>{s}</option>)}
+                      <option value="Pendiente de Asignación">Pendiente de Asignación</option>
+                      {SECTORES_AUBASA.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </td>
                   <td style={{ textAlign: 'center' }}>
