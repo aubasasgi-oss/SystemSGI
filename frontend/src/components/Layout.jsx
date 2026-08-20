@@ -1,14 +1,42 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import ChatbotWidget from './ChatbotWidget';
-import { User, Shield } from 'lucide-react';
+import { Shield, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { SECTORES_AUBASA } from '../lib/sectoresAubasa';
+
+// 15 minutos en milisegundos
+const IDLE_TIMEOUT = 15 * 60 * 1000;
 
 const Layout = () => {
   const { user, userRole, userSector, logout } = useAuth();
   
+  // Timer para inactividad
+  const resetTimer = useCallback(() => {
+    if (window.idleTimer) clearTimeout(window.idleTimer);
+    window.idleTimer = setTimeout(() => {
+      alert("Tu sesión ha expirado por inactividad. Por favor, vuelve a iniciar sesión.");
+      logout();
+    }, IDLE_TIMEOUT);
+  }, [logout]);
+
+  useEffect(() => {
+    // Iniciar timer
+    resetTimer();
+
+    // Eventos que resetean el timer
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    
+    const handleActivity = () => resetTimer();
+    
+    events.forEach(e => window.addEventListener(e, handleActivity));
+    
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+      if (window.idleTimer) clearTimeout(window.idleTimer);
+    };
+  }, [resetTimer]);
+
   return (
     <div className="app-container">
       <Sidebar />
