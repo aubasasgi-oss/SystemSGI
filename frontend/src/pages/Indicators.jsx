@@ -22,7 +22,7 @@ const baseIndicators = rawData.map((r, i) => ({
 }));
 
 const Indicators = () => {
-  const { checkPermission, userRole } = useAuth();
+  const { checkPermission, userRole, userSector } = useAuth();
   
   // App state
   const [indicators, setIndicators] = useState(baseIndicators);
@@ -92,7 +92,7 @@ const Indicators = () => {
     const logEntry = {
       id: Date.now(),
       date: new Date().toISOString().split('T')[0],
-      user: userRole,
+      user: userRole === 'SGI' ? 'SGI Admin' : userSector,
       indId: activeInd.id,
       text: `Meta revisada. Valor: ${newMeta}. ${reviewComment ? 'Nota: ' + reviewComment : ''}`
     };
@@ -107,7 +107,7 @@ const Indicators = () => {
         <div>
           <h1 className="page-title">Objetivos y Metas (KPIs)</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-            Revisión anual obligatoria. Solo puedes modificar los indicadores asignados a tu sector: <strong>{userRole}</strong>
+            Revisión anual obligatoria. Solo puedes modificar los indicadores asignados a tu sector: <strong>{userRole === 'SGI' ? 'SGI (Control Total)' : userSector}</strong>
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>

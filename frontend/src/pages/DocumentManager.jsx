@@ -272,8 +272,9 @@ async function generarPdfDesdeElemento(el) {
   return pdf.output('blob');
 }
 
-const DocumentManager = () => {
-  const { userRole, checkPermission } = useAuth();
+export default function DocumentManager() {
+  const { user, userRole, userSector } = useAuth();
+  const isSGI = userSector === 'SGI';
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -771,7 +772,7 @@ const DocumentManager = () => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {visibleDocuments.map(doc => {
-              const canAct = (doc.current_assignee === userRole || isSGI);
+              const canAct = (doc.current_assignee === userSector || isSGI);
               
               return (
                 <div key={doc.id} className="hover-row" style={{ 

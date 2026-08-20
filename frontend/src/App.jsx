@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthenticatedTemplate, UnauthenticatedTemplate, useMsal } from "@azure/msal-react";
-import { loginRequest } from "./authConfig";
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Risks from './pages/Risks';
@@ -14,40 +13,32 @@ import Indicators from './pages/Indicators';
 import Context from './pages/Context';
 import DocumentManager from './pages/DocumentManager';
 import ControlDocumental from './pages/ControlDocumental';
+import Login from './pages/Login';
 
-const LoginScreen = () => {
-  const { instance } = useMsal();
-
-  const handleLogin = () => {
-    instance.loginPopup(loginRequest).catch(e => {
-        console.error(e);
-    });
-  };
-
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'var(--bg-color)' }}>
-      <div className="glass animate-fade-in" style={{ padding: '3rem 2rem', textAlign: 'center', maxWidth: '400px', width: '100%' }}>
-        <h2 style={{ color: 'var(--text-primary)', fontSize: '2rem', marginBottom: '8px' }}>AUBASA</h2>
-        <p style={{ color: 'var(--accent-color)', marginBottom: '2rem', fontWeight: 600 }}>SISTEMA DE GESTIÓN INTEGRAL</p>
-        <p style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>Por favor, inicie sesión con su cuenta corporativa para acceder al sistema.</p>
-        <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={handleLogin}>
-          Iniciar Sesión con Microsoft
-        </button>
-      </div>
-    </div>
-  );
+const ProtectedRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
 };
 
-import { AuthProvider } from './contexts/AuthContext';
-
-const MODO_PRUEBA = true; // Cambiar a false cuando IT entregue el Client ID
+const PublicRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
 
 function App() {
-  const AppContent = (
+  return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<Layout />}>
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="metrics" element={<SectorMetrics />} />
             <Route path="flota" element={<FlotaControl />} />
@@ -64,22 +55,6 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
-  );
-
-  if (MODO_PRUEBA) {
-    return AppContent;
-  }
-
-  return (
-    <>
-      <UnauthenticatedTemplate>
-        <LoginScreen />
-      </UnauthenticatedTemplate>
-
-      <AuthenticatedTemplate>
-        {AppContent}
-      </AuthenticatedTemplate>
-    </>
   );
 }
 

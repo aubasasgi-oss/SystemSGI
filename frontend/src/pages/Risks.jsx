@@ -79,14 +79,16 @@ export const initialRisks = [
 ];
 
 export default function Risks() {
-  const { userRole } = useAuth();
+  const { userRole, userSector } = useAuth();
+  const isSGI = userRole === 'SGI';
   const [activeTab, setActiveTab] = useState('matriz'); // 'matriz' or 'validacion'
   const [risks, setRisks] = useState(initialRisks);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('table');
   const [selectedRisk, setSelectedRisk] = useState(null);
   const [filterYear, setFilterYear] = useState(2026);
-  const [filterSector, setFilterSector] = useState("Todos");
+  // Si no es SGI, forzar el filtro a su propio sector
+  const [filterSector, setFilterSector] = useState(isSGI ? "Todos" : userSector);
   const [closureAlert, setClosureAlert] = useState(false);
 
   // Validation Checklist State
@@ -104,15 +106,15 @@ export default function Risks() {
   useEffect(() => {
     const today = new Date();
     const isDecember = today.getMonth() === 11;
-    if (isDecember) {
-      const pendingClosure = risks.filter(r => r.año === filterYear && r.proceso === userRole && !r.eficacia);
+    if (isDecember && !isSGI) {
+      const pendingClosure = risks.filter(r => r.año === filterYear && r.proceso === userSector && !r.eficacia);
       if (pendingClosure.length > 0) {
         setClosureAlert(true);
       } else {
         setClosureAlert(false);
       }
     }
-  }, [risks, filterYear, userRole]);
+  }, [risks, filterYear, userSector, isSGI]);
 
   const filteredRisks = risks.filter(r => {
     const matchesSearch = r.riesgo.toLowerCase().includes(searchTerm.toLowerCase()) || r.proceso.toLowerCase().includes(searchTerm.toLowerCase());
@@ -123,7 +125,7 @@ export default function Risks() {
 
   const canEdit = (sector) => {
     if (userRole === 'SGI') return true;
-    if (userRole === sector) return true;
+    if (userSector === sector) return true;
     return false;
   };
 
@@ -437,14 +439,21 @@ export default function Risks() {
                     />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Filtro de Sector:</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select className="form-control" value={filterYear} onChange={e => setFilterYear(Number(e.target.value))} style={{ width: '120px' }}>
+                      <option value={2025}>Año 2025</option>
+                      <option value={2026}>Año 2026</option>
+                      <option value={2027}>Año 2027</option>
+                    </select>
                     <select 
-                      value={filterSector}
-                      onChange={(e) => setFilterSector(e.target.value)}
-                      className="form-control"
-                      style={{ width: '220px' }}
+                      className="form-control" 
+                      value={filterSector} 
+                      onChange={e => setFilterSector(e.target.value)}
+                      disabled={!isSGI}
                     >
-                      {SECTORES.map(s => <option key={s} value={s}>{s}</option>)}
+                      {isSGI && <option value="Todos">Todos los Sectores</option>}
+                      {!isSGI && <option value={userSector}>{userSector}</option>}
+                      {isSGI && SECTORES.filter(s => s !== "Todos").map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                 </div>

@@ -7,29 +7,45 @@ import { useAuth } from '../contexts/AuthContext';
 import { SECTORES_AUBASA } from '../lib/sectoresAubasa';
 
 const Layout = () => {
-  const { userRole, setUserRole } = useAuth();
+  const { user, userRole, userSector, logout } = useAuth();
+  
   return (
     <div className="app-container">
       <Sidebar />
       <ChatbotWidget />
       <main className="main-content">
-        <header className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Simulador de Roles (Para Pruebas):</span>
-            <select 
-              className="form-control" 
-              value={userRole} 
-              onChange={(e) => setUserRole(e.target.value)}
-              style={{ width: 'auto', background: 'rgba(255,255,255,0.05)', color: 'var(--accent-color)' }}
-            >
-              {SECTORES_AUBASA.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
+        <header className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+          <div>
+            <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              Hola, {user?.email}
+            </h4>
+            <span style={{ fontSize: '12px', color: 'var(--accent-color)' }}>
+              Perfil: {userRole} | Sector: {userSector}
+            </span>
           </div>
-          <div className="user-profile glass" style={{ border: '1px solid var(--accent-color)' }}>
-            <div className="avatar" style={{ background: 'var(--accent-color)' }}><Shield size={14} color="white" /></div>
-            <span style={{ fontWeight: 600 }}>{userRole}</span>
+          
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div className="user-profile glass" style={{ border: '1px solid var(--accent-color)' }}>
+              <div className="avatar" style={{ background: 'var(--accent-color)' }}><Shield size={14} color="white" /></div>
+              <span style={{ fontWeight: 600 }}>{userRole}</span>
+            </div>
+            
+            <button 
+              onClick={logout}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--danger-color)',
+                color: 'var(--danger-color)',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 600
+              }}
+              className="hover-scale"
+            >
+              Cerrar Sesión
+            </button>
           </div>
         </header>
         <div className="animate-fade-in">

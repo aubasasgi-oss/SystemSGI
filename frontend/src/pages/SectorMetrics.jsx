@@ -346,13 +346,15 @@ const kpisBySector = {
 };
 
 const SectorMetrics = () => {
-  const { userRole } = useAuth();
+  const { userRole, userSector } = useAuth();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [formData, setFormData] = useState({});
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const getSectorForm = () => {
-    switch (userRole) {
+    if (userRole === 'SGI') return 'sgi';
+    
+    switch (userSector) {
       case 'Gerencia de Operaciones':
       case 'Operaciones SPP': return 'operaciones_spp';
       case 'CCM':
@@ -380,7 +382,6 @@ const SectorMetrics = () => {
       case 'Gerencia de Tecnologia y Sistemas': 
       case 'Sistemas':
         return 'sistemas';
-      case 'SGI': return 'sgi'; // Admin, can select
       default: return 'none';
     }
   };
@@ -392,7 +393,7 @@ const SectorMetrics = () => {
     if (roleForm !== 'sgi') {
       setActiveForm(roleForm);
     }
-  }, [userRole]);
+  }, [userRole, userSector]);
 
   React.useEffect(() => {
     if (selectedMonth && selectedYear && activeForm !== 'none') {
@@ -445,7 +446,7 @@ const SectorMetrics = () => {
     return (
       <div className="glass" style={{ padding: '32px', textAlign: 'center' }}>
         <h2>Sin Métricas Asignadas</h2>
-        <p>Tu sector actual ({userRole}) no tiene un formulario de métricas asignado en este módulo.</p>
+        <p>Tu sector actual ({userSector}) no tiene un formulario de métricas asignado en este módulo.</p>
       </div>
     );
   }
