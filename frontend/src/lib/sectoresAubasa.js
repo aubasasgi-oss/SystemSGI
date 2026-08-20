@@ -7,11 +7,9 @@ export const SECTORES_AUBASA = [
   { value: 'Operaciones SPP', label: 'Gerencia de Operaciones (SPP)' },
   { value: 'Gerencia de Recursos Humanos', label: 'Gerencia de Recursos Humanos' },
   { value: 'Gerencia de Compras', label: 'Gerencia de Compras' },
-  { value: 'CCM', label: 'CCM (Contingencias)' },
-  { value: 'CCM Gestión Tránsito', label: 'CCM (Gestión Tránsito)' },
+  { value: 'CCM', label: 'CCM' },
   { value: 'Mantenimiento', label: 'Gerencia de Mantenimiento-Taller Mecanico' },
-  { value: 'Asistencia Vial', label: 'Asistencia Vial (Factores)' },
-  { value: 'Asistencia Vial Gestión', label: 'Asistencia Vial (Gestión AV1)' },
+  { value: 'Asistencia Vial', label: 'Asistencia Vial' },
   { value: 'Sistemas', label: 'Sistemas' },
   { value: 'Asuntos Legales', label: 'Asuntos Legales' }
 ];
