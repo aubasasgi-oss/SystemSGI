@@ -263,8 +263,8 @@ const ChatbotWidget = () => {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>Copilot SGI</h3>
-                <span style={{ fontSize: '12px', color: (geminiKey || groqKey || openRouterKey) ? 'var(--success-color)' : '#f59e0b' }}>
-                  {(geminiKey || groqKey || openRouterKey) ? 'Online (IA Multi-Motor Activada)' : 'Requiere API Key'}
+                <span style={{ fontSize: '12px', color: 'var(--success-color)' }}>
+                  Online (IA Multi-Motor Vercel Activada)
                 </span>
               </div>
             </div>
