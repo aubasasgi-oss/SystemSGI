@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature } from 'lucide-react';
+import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = () => {
+  const { userRole } = useAuth();
   return (
     <aside className="sidebar glass-panel">
       <div className="sidebar-logo">
@@ -15,6 +17,14 @@ const Sidebar = () => {
           <LayoutDashboard size={20} />
           <span>Dashboard</span>
         </NavLink>
+
+        {userRole === 'SGI' && (
+          <NavLink to="/admin/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <Users size={20} />
+            <span>Gestor de Usuarios</span>
+          </NavLink>
+        )}
+
         <NavLink to="/indicators" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Target size={20} />
           <span>Objetivos y Metas</span>

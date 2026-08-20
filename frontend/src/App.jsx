@@ -14,6 +14,7 @@ import Context from './pages/Context';
 import DocumentManager from './pages/DocumentManager';
 import ControlDocumental from './pages/ControlDocumental';
 import Login from './pages/Login';
+import AdminUsers from './pages/AdminUsers';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -40,6 +41,8 @@ function App() {
           
           <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
+            <Route path="admin/users" element={<AdminUsers />} />
+            <Route path="risks" element={<Risks />} />
             <Route path="metrics" element={<SectorMetrics />} />
             <Route path="flota" element={<FlotaControl />} />
             <Route path="management-review" element={<ManagementReview />} />
