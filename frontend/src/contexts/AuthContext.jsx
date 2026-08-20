@@ -49,6 +49,15 @@ export const AuthProvider = ({ children }) => {
         console.error('Error fetching profile:', error);
       }
       
+      // Hardcode admin role for the owner to prevent lockouts
+      const email = (await supabase.auth.getSession()).data?.session?.user?.email;
+      
+      if (email === 'sgiaubasa@gmail.com') {
+        setUserRole('SGI');
+        setUserSector('SGI');
+        return;
+      }
+
       if (data) {
         setUserRole(data.role);
         setUserSector(data.sector);
