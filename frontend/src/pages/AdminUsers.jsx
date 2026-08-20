@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../supabaseClient';
 import { Users, Shield, Save, Plus, Loader, Mail, Lock } from 'lucide-react';
 import { SECTORES_AUBASA } from '../lib/sectoresAubasa';
 
