@@ -274,7 +274,7 @@ async function generarPdfDesdeElemento(el) {
 
 export default function DocumentManager() {
   const { user, userRole, userSector } = useAuth();
-  const isSGI = userSector === 'SGI';
+  const isSGI = userRole === 'SGI';
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -292,7 +292,7 @@ export default function DocumentManager() {
   const [currentFolder, setCurrentFolder] = useState(null);
   const [currentSubFolder, setCurrentSubFolder] = useState(null);
   
-  const isSGI = checkPermission('SGI');
+
 
   const getTodayString = () => new Date().toISOString().split('T')[0];
 
@@ -1163,4 +1163,4 @@ export default function DocumentManager() {
   );
 };
 
-export default DocumentManager;
+

@@ -457,6 +457,7 @@ export default function Risks() {
                     </select>
                   </div>
                 </div>
+                </div>
                 
                 <table className="data-table" style={{minWidth: '1500px'}}>
                   <thead>
