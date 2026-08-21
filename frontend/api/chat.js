@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   const askGemini = async () => {
     if (!geminiKey) throw new Error("Key no configurada");
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPromptFull }] },
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: 'POST', headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [
           { role: "system", content: systemPromptFull },
           ...recentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST', headers: { 'Authorization': `Bearer ${openRouterKey}`, 'HTTP-Referer': 'http://localhost:5173', 'X-Title': 'SGI Copilot', 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.1-8b-instruct:free",
+        model: "deepseek/deepseek-r1:free",
         messages: [
           { role: "system", content: systemPromptFull },
           ...recentMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
