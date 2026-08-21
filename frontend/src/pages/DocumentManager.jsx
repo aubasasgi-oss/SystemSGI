@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Upload, CheckCircle, Edit, Edit3, Eye, FileSignature, AlertCircle, Image as ImageIcon, Folder, ArrowLeft, Copy, Plus, X } from 'lucide-react';
+import { FileText, Upload, CheckCircle, Edit, Edit3, Eye, FileSignature, AlertCircle, Image as ImageIcon, Folder, ArrowLeft, Copy, Plus, X, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import OnlyOfficeEditor from '../components/OnlyOfficeEditor';
 import ReactQuill from 'react-quill-new';
@@ -418,6 +418,36 @@ export default function DocumentManager() {
     }
   };
 
+  // Borra la fila (y sus archivos en Storage) para siempre — a diferencia del
+  // resto del flujo, esto no pasa por "Obsoleto", desaparece del sistema.
+  const handleDeletePermanent = async (doc) => {
+    const confirmacion = prompt(
+      `Esto borra "${doc.code} - ${doc.title}" (${doc.version}) PARA SIEMPRE, no queda en Archivo Obsoleto ni se puede deshacer.\n\nEscribí BORRAR para confirmar:`
+    );
+    if (confirmacion !== 'BORRAR') return;
+
+    try {
+      const nombresArchivo = [doc.pdf_url, doc.docx_url]
+        .filter(Boolean)
+        .map(url => url.split('/sgi-pdfs/')[1])
+        .filter(Boolean)
+        .map(nombre => decodeURIComponent(nombre));
+
+      if (nombresArchivo.length > 0) {
+        const { error: errStorage } = await supabase.storage.from('sgi-pdfs').remove(nombresArchivo);
+        if (errStorage) console.warn('No se pudieron borrar todos los archivos de Storage:', errStorage.message);
+      }
+
+      const { error } = await supabase.from('sgi_documents').delete().eq('id', doc.id);
+      if (error) throw error;
+
+      fetchDocuments();
+    } catch (error) {
+      console.error('Error borrando documento:', error.message);
+      alert('Hubo un error al borrar el documento: ' + error.message);
+    }
+  };
+
   const completeUploadSignature = async () => {
     try {
       const { error } = await supabase
@@ -691,19 +721,27 @@ export default function DocumentManager() {
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando documentos desde la nube...</div>
         ) : !currentFolder ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '16px' }}>
-            {PREDEFINED_FOLDERS.map(folder => (
-              <div 
-                key={folder} 
-                onClick={() => setCurrentFolder(folder)}
-                className="hover-row" 
-                style={{ padding: '24px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: 'var(--bg-color)', transition: 'all 0.2s' }}>
-                <Folder size={48} color="#eab308" style={{ margin: '0 auto 12px auto' }} />
-                <h3 style={{ fontSize: '14px', margin: 0, color: 'var(--text-primary)' }}>{folder}</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  {documents.filter(d => d.folder_name === folder && d.status !== 'Obsoleto').length} docs vigentes
-                </p>
-              </div>
-            ))}
+            {PREDEFINED_FOLDERS.map(folder => {
+              // Las carpetas con subcarpetas (Procedimientos del Manual,
+              // Instrucciones de Trabajo) guardan los documentos con
+              // folder_name = título de la subcarpeta, no el de la carpeta
+              // padre — hay que sumarlos para que el conteo no dé siempre 0.
+              const nombresValidos = SUB_FOLDERS[folder] ? SUB_FOLDERS[folder].map(s => s.title) : [folder];
+              const cantidad = documents.filter(d => nombresValidos.includes(d.folder_name) && d.status !== 'Obsoleto').length;
+              return (
+                <div
+                  key={folder}
+                  onClick={() => setCurrentFolder(folder)}
+                  className="hover-row"
+                  style={{ padding: '24px', textAlign: 'center', border: '1px solid var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: 'var(--bg-color)', transition: 'all 0.2s' }}>
+                  <Folder size={48} color="#eab308" style={{ margin: '0 auto 12px auto' }} />
+                  <h3 style={{ fontSize: '14px', margin: 0, color: 'var(--text-primary)' }}>{folder}</h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    {cantidad} docs vigentes
+                  </p>
+                </div>
+              );
+            })}
             
             {isSGI && (
                <div 
@@ -852,6 +890,12 @@ export default function DocumentManager() {
                           <FileSignature size={16} />
                         </button>
                       </>
+                    )}
+
+                    {isSGI && (
+                      <button className="btn" onClick={() => handleDeletePermanent(doc)} style={{ padding: '6px', background: '#dc2626', color: 'white' }} title="Eliminar definitivamente (no va a Obsoleto, no se puede deshacer)">
+                        <Trash2 size={16} />
+                      </button>
                     )}
                   </div>
                 </div>
