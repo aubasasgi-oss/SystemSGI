@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, FileText, AlertTriangle, Car, BarChart2, Monitor, Wrench, Phone, Briefcase, Users, Server, BookOpen, TrendingUp, Maximize, Minimize } from 'lucide-react';
+import { ShieldCheck, FileText, AlertTriangle, Car, BarChart2, Monitor, Wrench, Phone, Briefcase, Users, Server, BookOpen, TrendingUp, Maximize, Minimize, Scale, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Line, LineChart, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import Papa from 'papaparse';
 
@@ -250,52 +250,66 @@ const Dashboard = () => {
         overflow: 'hidden'
       }}>
         
-        <div style={{ position: 'absolute', top: '50px', textAlign: 'center', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', padding: '12px 40px', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '30px', boxShadow: '0 4px 30px rgba(0,0,0,0.1)' }}>
+        <div style={{ position: 'absolute', top: '50px', textAlign: 'center', background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', padding: '12px 40px', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '30px', boxShadow: '0 4px 30px rgba(0,0,0,0.2)' }}>
           <h2 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: '800', letterSpacing: '4px' }}>INDICADORES DE GESTIÓN</h2>
         </div>
 
-        <div className="glass-panel" style={{ padding: '40px 80px', borderRadius: '24px', marginBottom: '60px', marginTop: '60px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.95)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', border: '1px solid rgba(255,255,255,1)' }}>
+        <div className="glass-panel" style={{ padding: '2px', borderRadius: '26px', marginBottom: '56px', marginTop: '60px', background: 'linear-gradient(135deg, #0ea5e9, #38bdf8, #0ea5e9)', boxShadow: '0 25px 60px -12px rgba(14, 165, 233, 0.45)' }}>
+          <div style={{ padding: '40px 80px', borderRadius: '24px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.97)' }}>
             <h1 style={{ color: '#0ea5e9', fontSize: '72px', fontWeight: '900', margin: 0, letterSpacing: '-2px', lineHeight: '1', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>AUBASA</h1>
             <div style={{ width: '60px', height: '4px', background: '#0ea5e9', margin: '16px auto', borderRadius: '2px' }}></div>
             <p style={{ color: '#475569', margin: '0', fontSize: '15px', fontWeight: '700', letterSpacing: '2px' }}>AUTOPISTAS DE BUENOS AIRES S.A.</p>
+          </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', width: '100%', maxWidth: '1000px', gap: '24px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <button onClick={() => setActiveGerencia('comercial')} className="btn-portal slide-in" style={{ animationDelay: '0.1s' }}>GERENCIA COMERCIAL</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('operaciones_spp')} style={{ animationDelay: '0.2s' }}>GERENCIA DE OPERACIONES</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('asistencia')} style={{ animationDelay: '0.3s' }}>ASISTENCIA VIAL</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('ccm')} style={{ animationDelay: '0.4s' }}>CENTRO DE CONTROL Y MONITOREO</button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('mantenimiento')} style={{ animationDelay: '0.5s' }}>MANTENIMIENTO - TALLER MECÁNICO</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('institucionales')} style={{ animationDelay: '0.6s' }}>SUBGERENCIA RELACIONES INSTITUCIONALES</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('rrhh')} style={{ animationDelay: '0.7s' }}>GERENCIA DE RECURSOS HUMANOS</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('legales')} style={{ animationDelay: '0.8s' }}>GERENCIA DE ASUNTOS LEGALES</button>
-            <button className="btn-portal slide-in" onClick={() => setActiveGerencia('sistemas')} style={{ animationDelay: '0.9s' }}>GERENCIA SISTEMAS - MANTENIMIENTO</button>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', width: '100%', maxWidth: '1000px', gap: '18px' }}>
+          {[
+            { key: 'comercial', label: 'GERENCIA COMERCIAL', Icon: Briefcase },
+            { key: 'operaciones_spp', label: 'GERENCIA DE OPERACIONES', Icon: BarChart2 },
+            { key: 'asistencia', label: 'ASISTENCIA VIAL', Icon: Car },
+            { key: 'ccm', label: 'CENTRO DE CONTROL Y MONITOREO', Icon: Monitor },
+            { key: 'mantenimiento', label: 'MANTENIMIENTO - TALLER MECÁNICO', Icon: Wrench },
+            { key: 'institucionales', label: 'SUBGERENCIA RELACIONES INSTITUCIONALES', Icon: Building2 },
+            { key: 'rrhh', label: 'GERENCIA DE RECURSOS HUMANOS', Icon: Users },
+            { key: 'legales', label: 'GERENCIA DE ASUNTOS LEGALES', Icon: Scale },
+            { key: 'sistemas', label: 'GERENCIA SISTEMAS - MANTENIMIENTO', Icon: Server },
+          ].map(({ key, label, Icon }, i) => (
+            <button
+              key={key}
+              onClick={() => setActiveGerencia(key)}
+              className="btn-portal slide-in"
+              style={{ animationDelay: `${0.1 + i * 0.08}s` }}
+            >
+              <Icon size={22} style={{ flexShrink: 0, opacity: 0.9 }} />
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
 
 
         <style>{`
           .btn-portal {
-            padding: 16px 24px;
+            padding: 16px 22px;
             background: linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(37, 99, 235, 0.9) 100%);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 800;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(8px);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-            text-align: center;
+            text-align: left;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             position: relative;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            width: 100%;
+            line-height: 1.3;
           }
           .btn-portal::before {
             content: '';
