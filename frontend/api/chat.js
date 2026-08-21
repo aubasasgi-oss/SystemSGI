@@ -1,3 +1,11 @@
+// Las claves pegadas desde Word/Notion/notas suelen traer guiones
+// "tipográficos" (–, —) en vez de un guion ASCII simple — rompe el header
+// HTTP sin que se note a simple vista. Se normaliza antes de usarla.
+function sanearClave(valor) {
+  if (!valor) return valor;
+  return valor.trim().replace(/[‐-―]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -5,9 +13,9 @@ export default async function handler(req, res) {
 
   const { systemPromptFull, recentMessages, currentInput } = req.body;
 
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
-  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const geminiKey = sanearClave(process.env.GEMINI_API_KEY);
+  const groqKey = sanearClave(process.env.GROQ_API_KEY);
+  const openRouterKey = sanearClave(process.env.OPENROUTER_API_KEY);
 
   if (!geminiKey && !groqKey && !openRouterKey) {
     return res.status(500).json({ error: 'Faltan Claves API en el servidor (Vercel).' });
