@@ -18,12 +18,12 @@ const Sidebar = () => {
           <span>Dashboard</span>
         </NavLink>
 
-        <NavLink to="/apps" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+        <NavLink to="/apps" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Grid size={20} />
           <span>Otras Aplicaciones</span>
         </NavLink>
         {userRole === 'SGI' && (
-          <NavLink to="/admin/users" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <NavLink to="/admin/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <Users size={20} />
             <span>Gestor de Usuarios</span>
           </NavLink>
