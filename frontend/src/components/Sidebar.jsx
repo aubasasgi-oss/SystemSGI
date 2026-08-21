@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users } from 'lucide-react';
+import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users, Grid } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -18,8 +18,12 @@ const Sidebar = () => {
           <span>Dashboard</span>
         </NavLink>
 
+        <NavLink to="/apps" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Grid size={20} />
+          <span>Otras Aplicaciones</span>
+        </NavLink>
         {userRole === 'SGI' && (
-          <NavLink to="/admin/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/admin/users" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
             <Users size={20} />
             <span>Gestor de Usuarios</span>
           </NavLink>
