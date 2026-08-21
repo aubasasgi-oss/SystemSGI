@@ -286,7 +286,6 @@ export default function DocumentManager() {
   const [onlyOfficeDoc, setOnlyOfficeDoc] = useState(null);
   const [onlyOfficeModo, setOnlyOfficeModo] = useState('pdf');
   const previewRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('trabajo');
 
   // Folder state
   const [currentFolder, setCurrentFolder] = useState(null);
@@ -592,13 +591,6 @@ export default function DocumentManager() {
   };
 
   const visibleDocuments = documents.filter(doc => {
-    // 1. Filtrado por Pestaña Activa
-    if (activeTab === 'trabajo') {
-      if (doc.status === 'Firmado' || doc.status === 'Obsoleto') return false;
-    } else { // repositorio
-      if (doc.status !== 'Firmado' && doc.status !== 'Obsoleto') return false;
-    }
-
     if (!currentFolder) return false;
     if (currentFolder === 'Archivo Obsoleto') return doc.status === 'Obsoleto';
     
@@ -693,20 +685,6 @@ export default function DocumentManager() {
         )}
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
-        <button 
-          onClick={() => { setActiveTab('trabajo'); setCurrentFolder(null); setCurrentSubFolder(null); }}
-          style={{ flex: 1, padding: '16px', background: 'none', border: 'none', borderBottom: activeTab === 'trabajo' ? '3px solid var(--primary-color)' : '3px solid transparent', color: activeTab === 'trabajo' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'trabajo' ? 'bold' : 'normal', cursor: 'pointer', transition: 'all 0.2s', fontSize: '15px' }}
-        >
-          📝 Área de Trabajo (Edición y Ruteo)
-        </button>
-        <button 
-          onClick={() => { setActiveTab('repositorio'); setCurrentFolder(null); setCurrentSubFolder(null); }}
-          style={{ flex: 1, padding: '16px', background: 'none', border: 'none', borderBottom: activeTab === 'repositorio' ? '3px solid var(--primary-color)' : '3px solid transparent', color: activeTab === 'repositorio' ? 'var(--primary-color)' : 'var(--text-secondary)', fontWeight: activeTab === 'repositorio' ? 'bold' : 'normal', cursor: 'pointer', transition: 'all 0.2s', fontSize: '15px' }}
-        >
-          📚 Repositorio Oficial (Vigentes y Obsoletos)
-        </button>
-      </div>
 
       <div className="glass table-container animate-fade-in delay-1" style={{ minHeight: '300px' }}>
         {loading ? (
