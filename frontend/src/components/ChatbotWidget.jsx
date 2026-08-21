@@ -3,10 +3,16 @@ import { MessageSquare, X, Send, Loader, FileText, Settings, Key } from 'lucide-
 import { supabase } from '../supabaseClient';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { createWorker } from 'tesseract.js';
 import { rawData } from '../data/sgiData';
 import { initialRisks } from '../pages/Risks';
 import { initialContext } from '../pages/Context';
 import { mockReviews } from '../pages/ManagementReview';
+
+// Si una página trae muy poco texto "real" (menos de este umbral), suele
+// significar que el contenido es una imagen/mapa/plano sin texto embebido —
+// ahí se recurre a OCR sobre un render de la página para poder leerlo igual.
+const UMBRAL_TEXTO_MINIMO = 40;
 
 // Configurar el worker de PDF.js para Vite
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -63,32 +69,63 @@ const ChatbotWidget = () => {
 
 
 
+  // Renderiza una página de PDF a un canvas y le corre OCR — se usa cuando la
+  // página no tiene texto real embebido (mapas, planos, escaneos).
+  const ocrDePagina = async (page, worker) => {
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const { data: { text } } = await worker.recognize(canvas);
+    return text;
+  };
+
   const extractTextFromPDF = async (url) => {
     // Si ya lo tenemos en caché, usarlo
     if (pdfCache[url]) return pdfCache[url];
 
+    let worker = null;
     try {
       const loadingTask = pdfjsLib.getDocument({ url: url });
       const pdf = await loadingTask.promise;
-      
+
       let fullText = '';
       // Extraer texto de las primeras 15 páginas para no saturar el token limit (ajustable)
       const maxPages = Math.min(pdf.numPages, 15);
-      
+
       for (let i = 1; i <= maxPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
+        let pageText = textContent.items.map(item => item.str).join(' ');
+
+        // Página casi sin texto real (mapa/plano/imagen) -> OCR de respaldo
+        if (pageText.trim().length < UMBRAL_TEXTO_MINIMO) {
+          try {
+            if (!worker) {
+              worker = await createWorker('spa');
+            }
+            const textoOcr = await ocrDePagina(page, worker);
+            if (textoOcr.trim()) {
+              pageText += `\n[Texto detectado por OCR en imagen/mapa de esta página]:\n${textoOcr}`;
+            }
+          } catch (ocrError) {
+            console.warn(`OCR falló en página ${i}:`, ocrError);
+          }
+        }
+
         fullText += `--- PÁGINA ${i} ---\n${pageText}\n\n`;
       }
-      
+
       // Guardar en caché
       setPdfCache(prev => ({ ...prev, [url]: fullText }));
       return fullText;
-      
+
     } catch (error) {
       console.error("Error extrayendo texto del PDF:", error);
       throw new Error(`No pude leer el contenido del PDF. Detalle: ${error.message}`);
+    } finally {
+      if (worker) await worker.terminate();
     }
   };
 
