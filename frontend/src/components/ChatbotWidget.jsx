@@ -25,7 +25,10 @@ const ChatbotWidget = () => {
   // Documentos
   const [documents, setDocuments] = useState([]);
   const [selectedDocId, setSelectedDocId] = useState('all');
-  
+  const [docSearchTerm, setDocSearchTerm] = useState('');
+  const [docSearchOpen, setDocSearchOpen] = useState(false);
+  const docSearchRef = useRef(null);
+
   // Estado del chat
   const [messages, setMessages] = useState([
     { id: 1, sender: 'ai', text: 'Hola. Soy el Asistente SGI con Inteligencia Artificial. Por favor, selecciona un documento en la parte superior y hazme una pregunta sobre él.' }
@@ -45,6 +48,40 @@ const ChatbotWidget = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const cerrarSiEsAfuera = (e) => {
+      if (docSearchRef.current && !docSearchRef.current.contains(e.target)) {
+        setDocSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', cerrarSiEsAfuera);
+    return () => document.removeEventListener('mousedown', cerrarSiEsAfuera);
+  }, []);
+
+  const OPCIONES_ESPECIALES = [
+    { id: 'global', label: 'Consultar: TODO EL SISTEMA (Base de Datos + Todos los PDFs)' },
+    { id: 'all', label: 'Consultar: Solo Índice de Documentos (Rápido)' }
+  ];
+
+  const opcionSeleccionada = OPCIONES_ESPECIALES.find(o => o.id === selectedDocId)
+    || documents.find(d => d.id.toString() === selectedDocId.toString());
+
+  const etiquetaSeleccionada = opcionSeleccionada
+    ? (opcionSeleccionada.label || `${opcionSeleccionada.code} - ${opcionSeleccionada.title}`)
+    : 'Elegí un documento…';
+
+  const textoFiltro = docSearchTerm.trim().toLowerCase();
+  const especialesFiltradas = OPCIONES_ESPECIALES.filter(o => o.label.toLowerCase().includes(textoFiltro));
+  const documentosFiltrados = documents.filter(d =>
+    `${d.code} ${d.title}`.toLowerCase().includes(textoFiltro)
+  );
+
+  const elegirDocumento = (id) => {
+    setSelectedDocId(id);
+    setDocSearchOpen(false);
+    setDocSearchTerm('');
+  };
 
   useEffect(() => {
     // Al abrir el chat, buscar documentos vigentes
@@ -312,22 +349,61 @@ const ChatbotWidget = () => {
             </div>
           </div>
 
-          {/* Selector de Contexto */}
-          <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,0.03)', borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FileText size={16} color="var(--text-secondary)" />
-            <select 
-              value={selectedDocId} 
-              onChange={(e) => setSelectedDocId(e.target.value)}
-              style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', outline: 'none', cursor: 'pointer', maxWidth: '100%' }}
-            >
-              <option value="global">Consultar: TODO EL SISTEMA (Base de Datos + Todos los PDFs)</option>
-              <option value="all">Consultar: Solo Índice de Documentos (Rápido)</option>
-              <optgroup label="Documentos Vigentes">
-                {documents.map(doc => (
-                  <option key={doc.id} value={doc.id}>{doc.code} - {doc.title}</option>
+          {/* Selector de Contexto (buscable) */}
+          <div ref={docSearchRef} style={{ position: 'relative', padding: '10px 16px', background: 'rgba(0,0,0,0.03)', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+              <input
+                type="text"
+                value={docSearchOpen ? docSearchTerm : etiquetaSeleccionada}
+                onFocus={() => { setDocSearchOpen(true); setDocSearchTerm(''); }}
+                onChange={(e) => setDocSearchTerm(e.target.value)}
+                placeholder="Buscar documento por código o título…"
+                style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '13px', color: 'var(--text-primary)', outline: 'none', cursor: 'text', maxWidth: '100%' }}
+              />
+            </div>
+
+            {docSearchOpen && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                background: 'var(--bg-color)', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '10px',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.15)', maxHeight: '280px', overflowY: 'auto', zIndex: 50
+              }}>
+                {especialesFiltradas.map(o => (
+                  <div
+                    key={o.id}
+                    onClick={() => elegirDocumento(o.id)}
+                    className="hover-row"
+                    style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', fontWeight: 600, color: 'var(--accent-color)' }}
+                  >
+                    {o.label}
+                  </div>
                 ))}
-              </optgroup>
-            </select>
+
+                {especialesFiltradas.length > 0 && documentosFiltrados.length > 0 && (
+                  <div style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                    Documentos Vigentes
+                  </div>
+                )}
+
+                {documentosFiltrados.map(doc => (
+                  <div
+                    key={doc.id}
+                    onClick={() => elegirDocumento(doc.id)}
+                    className="hover-row"
+                    style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)' }}
+                  >
+                    <strong>{doc.code}</strong> - {doc.title}
+                  </div>
+                ))}
+
+                {especialesFiltradas.length === 0 && documentosFiltrados.length === 0 && (
+                  <div style={{ padding: '14px', fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                    Sin resultados para "{docSearchTerm}"
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Área de Mensajes */}
