@@ -352,18 +352,43 @@ export default function DocumentManager() {
     return publicUrlData.publicUrl;
   };
 
-  const markOldVersionsObsolete = async (code, currentId) => {
+  // Devuelve false si el usuario cancela (cuando detecta códigos repetidos
+  // entre documentos con títulos distintos, señal de que el código no es
+  // realmente único y se está por obsoletar algo que no corresponde).
+  const markOldVersionsObsolete = async (code, currentId, currentTitle) => {
     try {
+      const { data: afectados, error: errSelect } = await supabase
+        .from('sgi_documents')
+        .select('id, title')
+        .eq('code', code)
+        .eq('status', 'Firmado')
+        .neq('id', currentId);
+      if (errSelect) { console.error("Error checking old versions:", errSelect); return true; }
+      if (!afectados || afectados.length === 0) return true;
+
+      const distintos = afectados.filter(d => d.title !== currentTitle);
+      if (distintos.length > 0) {
+        const lista = distintos.map(d => `- ${d.title}`).join('\n');
+        const continuar = confirm(
+          `El código "${code}" también lo tienen estos documentos con OTRO título:\n${lista}\n\n` +
+          `Si seguís, se van a marcar como Obsoletos aunque no sean revisiones de este documento.\n` +
+          `Si son documentos distintos, cancelá y usá un código único para cada uno.\n\n¿Continuar de todos modos?`
+        );
+        if (!continuar) return false;
+      }
+
       const { error } = await supabase
         .from('sgi_documents')
         .update({ status: 'Obsoleto' })
         .eq('code', code)
         .eq('status', 'Firmado')
         .neq('id', currentId);
-        
+
       if (error) console.error("Error archiving old versions:", error);
+      return true;
     } catch (e) {
       console.error(e);
+      return true;
     }
   };
 
@@ -408,7 +433,7 @@ export default function DocumentManager() {
       if (error) throw error;
       
       if (newStatus === 'Firmado') {
-         await markOldVersionsObsolete(doc.code, doc.id);
+         await markOldVersionsObsolete(doc.code, doc.id, doc.title);
       }
       
       fetchDocuments();
@@ -457,7 +482,7 @@ export default function DocumentManager() {
 
       if (error) throw error;
       
-      await markOldVersionsObsolete(selectedDoc.code, selectedDoc.id);
+      await markOldVersionsObsolete(selectedDoc.code, selectedDoc.id, selectedDoc.title);
       
       alert("Imagen de firma cargada y aplicada exitosamente. El documento pasa a estado Firmado.");
       setUploadSigModal(false);
@@ -583,6 +608,20 @@ export default function DocumentManager() {
     if(!newDocForm.code || !newDocForm.title || !newDocForm.folder_name || !newDocForm.file || !newDocForm.version || !newDocForm.date) {
       alert("Por favor completa todos los campos (incluyendo versión y fecha) y adjunta un archivo PDF.");
       return;
+    }
+
+    // El código tiene que ser único por documento — si ya existe con OTRO
+    // título, al aprobar este nuevo se va a marcar obsoleto el anterior
+    // aunque sea un documento totalmente distinto (ej. "NORMA" repetido en
+    // varias normas ISO). Se avisa antes de crear, no después.
+    const codigoRepetido = documents.find(d => d.code === newDocForm.code && d.title !== newDocForm.title);
+    if (codigoRepetido) {
+      const continuar = confirm(
+        `El código "${newDocForm.code}" ya lo usa "${codigoRepetido.title}".\n\n` +
+        `Si son el mismo documento, seguí. Si son documentos distintos (ej. otra norma), ` +
+        `cancelá y usá un código único para este — si no, al aprobarlo va a marcar obsoleto al otro.`
+      );
+      if (!continuar) return;
     }
 
     try {
