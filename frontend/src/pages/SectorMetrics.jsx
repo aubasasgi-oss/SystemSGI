@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Save, CheckCircle } from 'lucide-react';
 import { obtenerMetricaMensual, guardarMetricaMensual } from '../lib/metricsApi';
+import ComercialMetricsForms from '../components/ComercialMetricsForms';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -437,6 +438,37 @@ const SectorMetrics = () => {
 
   const currentSectorData = kpisBySector[activeForm];
 
+  const sgiSelector = userRole === 'SGI' && (
+    <div className="glass animate-fade-in delay-1" style={{ padding: '24px', maxWidth: '1100px', marginBottom: '24px' }}>
+      <label className="form-label">Seleccionar Sector a Cargar (Modo SGI)</label>
+      <select className="form-control" value={activeForm} onChange={(e) => setActiveForm(e.target.value)} style={{ width: '350px' }}>
+        <option value="comercial">Gerencia Comercial</option>
+        <option value="operaciones_spp">Gerencia de Operaciones (SPP)</option>
+        <option value="ccm">Centro de Control y Monitoreo (Contingencias)</option>
+        <option value="ccm_gestion">Centro de Control y Monitoreo (Gestión Tránsito)</option>
+        <option value="av">Asistencia Vial (Factores)</option>
+        <option value="av_gestion">Asistencia Vial (Gestión AV1)</option>
+        <option value="av_aux1">Asistencia Vial (1° Auxilio)</option>
+        <option value="av_aux_mec">Asistencia Vial (Auxilio Mecánico)</option>
+        <option value="mantenimiento">Ger. Mantenimiento-Taller Mecánico</option>
+        <option value="rrhh">Gerencia de Recursos Humanos</option>
+        <option value="compras">Gerencia de Compras</option>
+        <option value="legales">Gerencia de Asuntos Legales</option>
+        <option value="sistemas">Gerencia de Tecnología y Sistemas</option>
+        <option value="institucionales">SubGerencia Relaciones Institucionales</option>
+      </select>
+    </div>
+  );
+
+  if (activeForm === 'comercial') {
+    return (
+      <div>
+        {sgiSelector}
+        <ComercialMetricsForms />
+      </div>
+    );
+  }
+
   return (
     <div className="module-container">
       <div className="module-header animate-fade-in">
@@ -447,7 +479,7 @@ const SectorMetrics = () => {
       </div>
 
       <div className="glass animate-fade-in delay-1" style={{ padding: '32px', maxWidth: '1100px' }}>
-        
+
         {userRole === 'SGI' && (
           <div style={{ marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
             <label className="form-label">Seleccionar Sector a Cargar (Modo SGI)</label>

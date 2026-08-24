@@ -3,6 +3,7 @@ import { ShieldCheck, FileText, AlertTriangle, Car, BarChart2, Monitor, Wrench, 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Line, LineChart, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import Papa from 'papaparse';
 import { obtenerMetricaMensual } from '../lib/metricsApi';
+import { listarComercialMetricsMultiples } from '../lib/comercialMetricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -41,7 +42,7 @@ const dataLegales = [
 
 const Dashboard = () => {
   const [activeGerencia, setActiveGerencia] = useState(null);
-  const [comercialMetrics, setComercialMetrics] = useState([]);
+  const [comercialRows, setComercialRows] = useState({ quejas_reclamos: [], telepase: [], atencion: [], tiempo_respuesta: [] });
   const [comercialView, setComercialView] = useState('home');
   const [asistenciaMetrics, setAsistenciaMetrics] = useState([]);
   const [asistenciaView, setAsistenciaView] = useState('home');
@@ -91,14 +92,14 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'comercial') {
-      obtenerMetricaMensual('comercial')
-        .then(data => {
-            const sorted = data.sort((a,b) => {
-               const months = { 'Enero':1, 'Febrero':2, 'Marzo':3, 'Abril':4, 'Mayo':5, 'Junio':6, 'Julio':7, 'Agosto':8, 'Septiembre':9, 'Octubre':10, 'Noviembre':11, 'Diciembre':12 };
-               if (a.year !== b.year) return a.year - b.year;
-               return (months[a.month]||0) - (months[a.month]||0);
-            });
-            setComercialMetrics(sorted);
+      listarComercialMetricsMultiples(['quejas_reclamos', 'telepase', 'atencion', 'tiempo_respuesta'])
+        .then(rows => {
+          setComercialRows({
+            quejas_reclamos: rows.filter(r => r.tipo === 'quejas_reclamos'),
+            telepase: rows.filter(r => r.tipo === 'telepase'),
+            atencion: rows.filter(r => r.tipo === 'atencion'),
+            tiempo_respuesta: rows.filter(r => r.tipo === 'tiempo_respuesta'),
+          });
         })
         .catch(console.error);
     } else if (activeGerencia === 'asistencia') {
@@ -334,40 +335,72 @@ const Dashboard = () => {
   };
 
   const renderComercial = () => {
-    const chartData = comercialMetrics.map(m => {
-       const telepase = m.data.com_telepase || {};
-       const qr = m.data.com_quejas_reclamos || {};
-       const tiempo = m.data.com_tiempo_resp || {};
-       const atencion = m.data.com_atencion || {};
-       
-       return {
-           name: m.month.substring(0,3),
-           sitio: qr.sitio || 'Desconocido',
-           telepase: telepase.transito_total ? (telepase.transito_telepase / telepase.transito_total)*100 : null,
-           telepaseRaw: telepase.transito_telepase || 0,
-           transitoTotal: telepase.transito_total || 0,
-           quejas: qr.transito ? (qr.quejas / qr.transito)*100000 : null,
-           reclamos: qr.transito ? (qr.reclamos / qr.transito)*100000 : null,
-           quejasRaw: qr.quejas || 0,
-           reclamosRaw: qr.reclamos || 0,
-           transitoQR: qr.transito || 0,
-           tiempoResp: tiempo.resp_total ? (tiempo.resp_ok / tiempo.resp_total)*100 : null,
-           atencionTel: atencion.llamadas_tot ? (atencion.llamadas_ok / atencion.llamadas_tot)*100 : null,
-           llamadasOk: atencion.llamadas_ok || 0,
-           llamadasTot: atencion.llamadas_tot || 0,
-           correosOk: tiempo.resp_ok || 0,
-           correosTot: tiempo.resp_total || 0,
-       };
+    const MESES_ES_COM = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    const bucketPorMes = (rows) => {
+      const map = {};
+      rows.forEach(r => {
+        if (!r.fecha) return;
+        const d = new Date(r.fecha + 'T00:00:00');
+        const key = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!map[key]) map[key] = { anio: d.getFullYear(), mesIdx: d.getMonth(), entries: [] };
+        map[key].entries.push(r.data || {});
+      });
+      return map;
+    };
+
+    const sum = (entries, field) => entries.reduce((acc, e) => acc + (Number(e[field]) || 0), 0);
+
+    const qrBuckets = bucketPorMes(comercialRows.quejas_reclamos);
+    const tpBuckets = bucketPorMes(comercialRows.telepase);
+    const atBuckets = bucketPorMes(comercialRows.atencion);
+    const trBuckets = bucketPorMes(comercialRows.tiempo_respuesta);
+
+    const allKeys = Array.from(new Set([
+      ...Object.keys(qrBuckets), ...Object.keys(tpBuckets), ...Object.keys(atBuckets), ...Object.keys(trBuckets)
+    ])).sort((a, b) => {
+      const [ay, am] = a.split('-').map(Number);
+      const [by, bm] = b.split('-').map(Number);
+      return ay - by || am - bm;
     });
 
-    const siteData = {};
-    chartData.forEach(d => {
-       if(!siteData[d.sitio]) siteData[d.sitio] = { name: d.sitio, quejas: 0, reclamos: 0 };
-       siteData[d.sitio].quejas += d.quejasRaw;
-       siteData[d.sitio].reclamos += d.reclamosRaw;
+    const chartData = allKeys.map(key => {
+      const mesIdx = Number(key.split('-')[1]);
+      const qrEntries = qrBuckets[key]?.entries || [];
+      const tpEntries = tpBuckets[key]?.entries || [];
+      const atEntries = atBuckets[key]?.entries || [];
+      const trEntries = trBuckets[key]?.entries || [];
+
+      const transitoQR = sum(qrEntries, 'transito');
+      const quejasRaw = sum(qrEntries, 'quejas');
+      const reclamosRaw = sum(qrEntries, 'reclamos');
+      const transitoTelepase = sum(tpEntries, 'transito_telepase');
+      const transitoTotal = sum(tpEntries, 'transito_total');
+      const llamadasOk = sum(atEntries, 'llamadas_atendidas');
+      const llamadasTot = sum(atEntries, 'llamadas_totales');
+      const correosOk = sum(atEntries, 'correos_respondidos');
+      const correosTot = sum(atEntries, 'correos_totales');
+      const respOk = sum(trEntries, 'respuestas_ok');
+      const respTot = sum(trEntries, 'respuestas_total');
+
+      return {
+        name: MESES_ES_COM[mesIdx].substring(0, 3),
+        telepase: transitoTotal ? (transitoTelepase / transitoTotal) * 100 : null,
+        telepaseRaw: transitoTelepase,
+        transitoTotal,
+        quejas: transitoQR ? (quejasRaw / transitoQR) * 100000 : null,
+        reclamos: transitoQR ? (reclamosRaw / transitoQR) * 100000 : null,
+        quejasRaw,
+        reclamosRaw,
+        transitoQR,
+        tiempoResp: respTot ? (respOk / respTot) * 100 : null,
+        atencionTel: llamadasTot ? (llamadasOk / llamadasTot) * 100 : null,
+        llamadasOk,
+        llamadasTot,
+        correosOk,
+        correosTot,
+      };
     });
-    const siteArray = Object.values(siteData);
-    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
     const avgTelepase = chartData.reduce((acc, curr) => acc + (curr.telepase || 0), 0) / (chartData.filter(c => c.telepase).length || 1);
     const avgQuejas = chartData.reduce((acc, curr) => acc + (curr.quejas || 0), 0) / (chartData.filter(c => c.quejas).length || 1);
