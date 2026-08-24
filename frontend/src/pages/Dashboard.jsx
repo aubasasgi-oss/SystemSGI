@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, FileText, AlertTriangle, Car, BarChart2, Monitor, Wrench, Phone, Briefcase, Users, Server, BookOpen, TrendingUp, Maximize, Minimize, Scale, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Line, LineChart, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import Papa from 'papaparse';
+import { obtenerMetricaMensual } from '../lib/metricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -90,8 +91,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'comercial') {
-      fetch('http://localhost:5001/api/metrics?sector=comercial')
-        .then(res => res.json())
+      obtenerMetricaMensual('comercial')
         .then(data => {
             const sorted = data.sort((a,b) => {
                const months = { 'Enero':1, 'Febrero':2, 'Marzo':3, 'Abril':4, 'Mayo':5, 'Junio':6, 'Julio':7, 'Agosto':8, 'Septiembre':9, 'Octubre':10, 'Noviembre':11, 'Diciembre':12 };
@@ -102,8 +102,7 @@ const Dashboard = () => {
         })
         .catch(console.error);
     } else if (activeGerencia === 'asistencia') {
-      fetch('http://localhost:5001/api/metrics?sector=asistencia')
-        .then(res => res.json())
+      obtenerMetricaMensual('asistencia')
         .then(data => {
             const sorted = data.sort((a,b) => {
                const months = { 'Enero':1, 'Febrero':2, 'Marzo':3, 'Abril':4, 'Mayo':5, 'Junio':6, 'Julio':7, 'Agosto':8, 'Septiembre':9, 'Octubre':10, 'Noviembre':11, 'Diciembre':12 };
@@ -128,8 +127,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'ccm') {
-      fetch(`http://localhost:5001/api/metrics?sector=ccm_gestion&year=${ccmAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('ccm_gestion', ccmAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
@@ -143,8 +141,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'mantenimiento') {
-      fetch(`http://localhost:5001/api/metrics?sector=mantenimiento&year=${mantenimientoAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('mantenimiento', mantenimientoAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
@@ -158,8 +155,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'institucionales') {
-      fetch(`http://localhost:5001/api/metrics?sector=institucionales&year=${institucionalesAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('institucionales', institucionalesAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
@@ -173,8 +169,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'legales') {
-      fetch(`http://localhost:5001/api/metrics?sector=legales&year=${legalesAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('legales', legalesAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
@@ -188,8 +183,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'sistemas') {
-      fetch(`http://localhost:5001/api/metrics?sector=sistemas&year=${sistemasAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('sistemas', sistemasAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
@@ -203,8 +197,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'operaciones_spp') {
-      fetch(`http://localhost:5001/api/metrics?sector=operaciones_spp&year=${operacionesAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('operaciones_spp', operacionesAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
@@ -218,8 +211,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'rrhh') {
-      fetch(`http://localhost:5001/api/metrics?sector=rrhh&year=${rrhhAnio}`)
-        .then(r => r.json())
+      obtenerMetricaMensual('rrhh', rrhhAnio)
         .then(d => {
           const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
             const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };

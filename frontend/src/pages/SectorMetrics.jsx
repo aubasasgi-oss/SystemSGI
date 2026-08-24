@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Save, CheckCircle } from 'lucide-react';
+import { obtenerMetricaMensual, guardarMetricaMensual } from '../lib/metricsApi';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -397,15 +398,8 @@ const SectorMetrics = () => {
 
   React.useEffect(() => {
     if (selectedMonth && selectedYear && activeForm !== 'none') {
-      fetch(`http://localhost:5001/api/metrics?sector=${activeForm}&year=${selectedYear}&month=${selectedMonth}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.length > 0) {
-            setFormData(data[0].data || {});
-          } else {
-            setFormData({});
-          }
-        })
+      obtenerMetricaMensual(activeForm, selectedYear, selectedMonth)
+        .then(data => setFormData((data && data[0]?.data) || {}))
         .catch(err => console.error(err));
     }
   }, [activeForm, selectedMonth, selectedYear]);
@@ -413,23 +407,13 @@ const SectorMetrics = () => {
   const handleSave = (e) => {
     e.preventDefault();
     if (!selectedMonth || !selectedYear) return;
-    
-    fetch('http://localhost:5001/api/metrics', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sector: activeForm,
-        year: selectedYear,
-        month: selectedMonth,
-        data: formData
+
+    guardarMetricaMensual(activeForm, selectedYear, selectedMonth, formData)
+      .then(() => {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
       })
-    })
-    .then(res => res.json())
-    .then(data => {
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    })
-    .catch(err => console.error(err));
+      .catch(err => console.error(err));
   };
 
   const handleInputChange = (kpiId, field, value, isString = false) => {
