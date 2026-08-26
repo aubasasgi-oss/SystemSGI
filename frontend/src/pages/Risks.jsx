@@ -12,6 +12,22 @@ const SECTORES = [
 
 const CONCESIONES = ["BALP", "SVIA", "BALP-SVIA"];
 
+const PROBABILIDAD_OPCIONES = [
+  { value: 1, label: 'Improbable' },
+  { value: 2, label: 'Muy Poco Probable' },
+  { value: 3, label: 'Poco Probable' },
+  { value: 4, label: 'Probable' },
+  { value: 5, label: 'Muy Probable' },
+];
+
+const IMPACTO_OPCIONES = [
+  { value: 1, label: 'Insignificante' },
+  { value: 2, label: 'Menor' },
+  { value: 3, label: 'Moderado' },
+  { value: 4, label: 'Mayor' },
+  { value: 5, label: 'Extremo' },
+];
+
 
 export default function Risks() {
   const { userRole, userSector } = useAuth();
@@ -553,12 +569,18 @@ export default function Risks() {
 
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <div style={{ flex: 1 }}>
-                    <label className="form-label">Probabilidad de Ocurrencia (1 a 5)</label>
-                    <input type="number" min="1" max="5" className="form-control" value={selectedRisk?.probabilidad} onChange={e => setSelectedRisk({...selectedRisk, probabilidad: Number(e.target.value)})} required />
+                    <label className="form-label">Probabilidad de Ocurrencia</label>
+                    <select className="form-control" value={selectedRisk?.probabilidad || ''} onChange={e => setSelectedRisk({...selectedRisk, probabilidad: Number(e.target.value)})} required>
+                      <option value="">Seleccionar...</option>
+                      {PROBABILIDAD_OPCIONES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label className="form-label">Impacto (1 a 5)</label>
-                    <input type="number" min="1" max="5" className="form-control" value={selectedRisk?.impacto} onChange={e => setSelectedRisk({...selectedRisk, impacto: Number(e.target.value)})} required />
+                    <label className="form-label">Impacto</label>
+                    <select className="form-control" value={selectedRisk?.impacto || ''} onChange={e => setSelectedRisk({...selectedRisk, impacto: Number(e.target.value)})} required>
+                      <option value="">Seleccionar...</option>
+                      {IMPACTO_OPCIONES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -608,12 +630,18 @@ export default function Risks() {
 
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <div style={{ flex: 1 }}>
-                    <label className="form-label">Prob. de Ocurrencia Residual (1 a 5)</label>
-                    <input type="number" min="1" max="5" className="form-control" value={selectedRisk?.probabilidadResidual} onChange={e => setSelectedRisk({...selectedRisk, probabilidadResidual: Number(e.target.value)})} required />
+                    <label className="form-label">Prob. de Ocurrencia Residual</label>
+                    <select className="form-control" value={selectedRisk?.probabilidadResidual || ''} onChange={e => setSelectedRisk({...selectedRisk, probabilidadResidual: Number(e.target.value)})} required>
+                      <option value="">Seleccionar...</option>
+                      {PROBABILIDAD_OPCIONES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label className="form-label">Impacto Residual (1 a 5)</label>
-                    <input type="number" min="1" max="5" className="form-control" value={selectedRisk?.impactoResidual} onChange={e => setSelectedRisk({...selectedRisk, impactoResidual: Number(e.target.value)})} required />
+                    <label className="form-label">Impacto Residual</label>
+                    <select className="form-control" value={selectedRisk?.impactoResidual || ''} onChange={e => setSelectedRisk({...selectedRisk, impactoResidual: Number(e.target.value)})} required>
+                      <option value="">Seleccionar...</option>
+                      {IMPACTO_OPCIONES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end' }}>
