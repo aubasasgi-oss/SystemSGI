@@ -7,7 +7,7 @@ import { supabase } from '../supabaseClient';
 
 const filaARiesgo = (row) => ({
   id: row.id,
-  proceso: row.proceso,
+  sector: row.sector,
   año: row.anio,
   ...row.data,
 });
@@ -22,11 +22,11 @@ export async function listarRiesgos() {
 }
 
 export async function guardarRiesgo(risk) {
-  const { id, proceso, año, ...resto } = risk;
+  const { id, sector, año, ...resto } = risk;
   const rowId = id || `R-${Date.now()}`;
   const { error } = await supabase
     .from('sgi_risks')
-    .upsert({ id: rowId, proceso, anio: año, data: resto, updated_at: new Date().toISOString() });
+    .upsert({ id: rowId, sector, anio: año, data: resto, updated_at: new Date().toISOString() });
   if (error) throw error;
   return rowId;
 }

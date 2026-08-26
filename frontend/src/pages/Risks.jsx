@@ -10,6 +10,8 @@ const SECTORES = [
   "Mantenimiento", "SGI", "Recursos Humanos", "Sistemas", "Asuntos Legales"
 ];
 
+const CONCESIONES = ["BALP", "SVIA", "BALP-SVIA"];
+
 
 export default function Risks() {
   const { userRole, userSector } = useAuth();
@@ -53,7 +55,7 @@ export default function Risks() {
     const today = new Date();
     const isDecember = today.getMonth() === 11;
     if (isDecember && !isSGI) {
-      const pendingClosure = risks.filter(r => r.año === filterYear && r.proceso === userSector && !r.eficacia);
+      const pendingClosure = risks.filter(r => r.año === filterYear && r.sector === userSector && !r.eficacia);
       if (pendingClosure.length > 0) {
         setClosureAlert(true);
       } else {
@@ -63,9 +65,9 @@ export default function Risks() {
   }, [risks, filterYear, userSector, isSGI]);
 
   const filteredRisks = risks.filter(r => {
-    const matchesSearch = r.riesgo.toLowerCase().includes(searchTerm.toLowerCase()) || r.proceso.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = r.riesgo.toLowerCase().includes(searchTerm.toLowerCase()) || (r.proceso || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesYear = r.año === filterYear;
-    const matchesSector = filterSector === "Todos" ? true : r.proceso === filterSector;
+    const matchesSector = filterSector === "Todos" ? true : r.sector === filterSector;
     return matchesSearch && matchesYear && matchesSector;
   });
 
@@ -360,7 +362,7 @@ export default function Risks() {
                     className="btn btn-primary"
                     onClick={() => {
                       setSelectedRisk({
-                        riesgo: '', causas: '', consecuencias: '', proceso: userRole !== 'SGI' ? userRole : '',
+                        riesgo: '', causas: '', consecuencias: '', proceso: '', sector: userRole !== 'SGI' ? userSector : '', concesion: '',
                         probabilidad: 1, impacto: 1, decision: 'MITIGAR', accionDecision: '', planAccion: '', fechaImplementacion: '', responsable: '',
                         probabilidadResidual: 1, impactoResidual: 1, ocurrio: '', eficacia: '', motivoEficaz: '', fechaEficacia: '', responsableEficacia: '', año: filterYear
                       });
@@ -422,7 +424,7 @@ export default function Risks() {
                       <th style={{width: '60px'}}>ID</th>
                       <th style={{width: '180px'}}>Riesgo</th>
                       <th style={{width: '180px'}}>Causas / Consecuencias</th>
-                      <th style={{width: '100px'}}>Proceso</th>
+                      <th style={{width: '140px'}}>Proceso / Sector / Concesión</th>
                       <th style={{textAlign:'center', width: '90px'}}>Inherente</th>
                       <th style={{width: '150px'}}>Decisión / Plan de Acción</th>
                       <th style={{textAlign:'center', width: '90px'}}>Residual</th>
@@ -441,7 +443,11 @@ export default function Risks() {
                           <div style={{fontSize: '12px', color: '#475569', marginBottom: '4px'}}><strong>Causas:</strong> {r.causas}</div>
                           <div style={{fontSize: '12px', color: '#64748b'}}><strong>Consec:</strong> {r.consecuencias}</div>
                         </td>
-                        <td>{r.proceso}</td>
+                        <td>
+                          <div style={{fontSize: '12px', marginBottom: '4px'}}>{r.proceso}</div>
+                          <div style={{fontSize: '11px', color: '#475569'}}><strong>Sector:</strong> {r.sector}</div>
+                          {r.concesion && <div style={{fontSize: '11px', color: '#64748b'}}><strong>Concesión:</strong> {r.concesion}</div>}
+                        </td>
                         <td style={{textAlign:'center'}}>{getNivelBadge(r.probabilidad, r.impacto)}</td>
                         <td>
                           <div style={{fontSize: '12px', color: '#475569', fontWeight: 'bold', marginBottom: '4px'}}>{r.decision}</div>
@@ -457,7 +463,7 @@ export default function Risks() {
                            r.eficacia ? <span style={{display: 'flex', alignItems: 'center', gap: '4px', color: '#eab308'}}><AlertTriangle size={14}/> {r.eficacia}</span> : '-'}
                         </td>
                         <td style={{textAlign:'right', position: 'sticky', right: 0, backgroundColor: 'white'}}>
-                          {canEdit(r.proceso) ? (
+                          {canEdit(r.sector) ? (
                             <>
                               <button className="btn btn-icon" onClick={() => { setSelectedRisk(r); setViewMode('form'); }}>
                                 <Edit2 size={16} />
@@ -524,9 +530,20 @@ export default function Risks() {
                 </div>
                 <div>
                   <label className="form-label">Proceso Relacionado</label>
-                  <select className="form-control" value={selectedRisk?.proceso} onChange={e => setSelectedRisk({...selectedRisk, proceso: e.target.value})} required>
+                  <input type="text" className="form-control" placeholder="Escribir el proceso..." value={selectedRisk?.proceso || ''} onChange={e => setSelectedRisk({...selectedRisk, proceso: e.target.value})} required />
+                </div>
+                <div>
+                  <label className="form-label">Sector (controla quién puede ver/editar este riesgo)</label>
+                  <select className="form-control" value={selectedRisk?.sector || ''} onChange={e => setSelectedRisk({...selectedRisk, sector: e.target.value})} required>
                     <option value="">Seleccionar...</option>
                     {SECTORES.filter(s => s !== 'Todos').map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Concesión</label>
+                  <select className="form-control" value={selectedRisk?.concesion || ''} onChange={e => setSelectedRisk({...selectedRisk, concesion: e.target.value})} required>
+                    <option value="">Seleccionar...</option>
+                    {CONCESIONES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
 
