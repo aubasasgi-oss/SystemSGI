@@ -454,20 +454,20 @@ export default function Risks() {
                     {filteredRisks.map(r => (
                       <tr key={r.id}>
                         <td style={{fontWeight: 'bold', color: 'var(--accent-color)'}}>{r.id}</td>
-                        <td><span className="truncate" style={{maxWidth: '180px', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal'}} title={r.riesgo}>{r.riesgo}</span></td>
+                        <td><span style={{maxWidth: '180px', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.riesgo}>{r.riesgo}</span></td>
                         <td>
-                          <div style={{fontSize: '12px', color: '#475569', marginBottom: '4px'}}><strong>Causas:</strong> {r.causas}</div>
-                          <div style={{fontSize: '12px', color: '#64748b'}}><strong>Consec:</strong> {r.consecuencias}</div>
+                          <div style={{fontSize: '12px', color: '#475569', marginBottom: '4px', maxWidth: '180px', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.causas}><strong>Causas:</strong> {r.causas}</div>
+                          <div style={{fontSize: '12px', color: '#64748b', maxWidth: '180px', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.consecuencias}><strong>Consec:</strong> {r.consecuencias}</div>
                         </td>
                         <td>
-                          <div style={{fontSize: '12px', marginBottom: '4px'}}>{r.proceso}</div>
+                          <div style={{fontSize: '12px', marginBottom: '4px', maxWidth: '140px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}} title={r.proceso}>{r.proceso}</div>
                           <div style={{fontSize: '11px', color: '#475569'}}><strong>Sector:</strong> {r.sector}</div>
                           {r.concesion && <div style={{fontSize: '11px', color: '#64748b'}}><strong>Concesión:</strong> {r.concesion}</div>}
                         </td>
                         <td style={{textAlign:'center'}}>{getNivelBadge(r.probabilidad, r.impacto)}</td>
                         <td>
                           <div style={{fontSize: '12px', color: '#475569', fontWeight: 'bold', marginBottom: '4px'}}>{r.decision}</div>
-                          <div className="truncate" style={{maxWidth: '150px', fontSize: '12px'}} title={r.planAccion}>{r.planAccion}</div>
+                          <div style={{maxWidth: '150px', fontSize: '12px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}} title={r.planAccion}>{r.planAccion}</div>
                         </td>
                         <td style={{textAlign:'center'}}>{getNivelBadge(r.probabilidadResidual, r.impactoResidual)}</td>
                         <td style={{textAlign:'center'}}>{getReevaluarText(r.probabilidadResidual, r.impactoResidual)}</td>
