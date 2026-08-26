@@ -452,7 +452,7 @@ export default function Risks() {
                   </thead>
                   <tbody>
                     {filteredRisks.map(r => (
-                      <tr key={r.id}>
+                      <tr key={r.id} onClick={() => { setSelectedRisk(r); setViewMode('form'); }} style={{cursor: 'pointer'}}>
                         <td style={{fontWeight: 'bold', color: 'var(--accent-color)'}}>{r.id}</td>
                         <td><span style={{maxWidth: '180px', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.riesgo}>{r.riesgo}</span></td>
                         <td>
@@ -478,7 +478,7 @@ export default function Risks() {
                           {r.eficacia === 'Eficaz' ? <span style={{display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a'}}><CheckCircle size={14}/> Eficaz</span> : 
                            r.eficacia ? <span style={{display: 'flex', alignItems: 'center', gap: '4px', color: '#eab308'}}><AlertTriangle size={14}/> {r.eficacia}</span> : '-'}
                         </td>
-                        <td style={{textAlign:'right', position: 'sticky', right: 0, backgroundColor: 'white'}}>
+                        <td style={{textAlign:'right', position: 'sticky', right: 0, backgroundColor: 'white'}} onClick={e => e.stopPropagation()}>
                           {canEdit(r.sector) ? (
                             <>
                               <button className="btn btn-icon" onClick={() => { setSelectedRisk(r); setViewMode('form'); }}>
@@ -518,16 +518,26 @@ export default function Risks() {
             </>
           )}
 
-          {viewMode === 'form' && (
+          {viewMode === 'form' && (() => {
+            const readOnlyForm = !!(selectedRisk?.id && !canEdit(selectedRisk.sector));
+            return (
             <div className="glass animate-fade-in delay-1" style={{ padding: '32px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h3 style={{ margin: 0, color: 'var(--accent-color)' }}>{selectedRisk?.id ? `Editar Riesgo: ${selectedRisk.id}` : 'Nuevo Riesgo Operativo'}</h3>
+                <h3 style={{ margin: 0, color: 'var(--accent-color)' }}>
+                  {readOnlyForm ? `Riesgo: ${selectedRisk.id} (solo lectura)` : selectedRisk?.id ? `Editar Riesgo: ${selectedRisk.id}` : 'Nuevo Riesgo Operativo'}
+                </h3>
                 <div className="badge" style={{ backgroundColor: '#e2e8f0', color: '#475569', fontSize: '14px' }}>
                   Año Matriz: <strong>{selectedRisk?.año}</strong>
                 </div>
               </div>
+              {readOnlyForm && (
+                <div style={{ marginBottom: '20px', padding: '12px 16px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Lock size={14} /> No tenés permisos para editar riesgos del sector "{selectedRisk?.sector}". Podés ver todos los datos, pero no modificarlos.
+                </div>
+              )}
               <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                
+                <fieldset disabled={readOnlyForm} style={{ display: 'contents', border: 'none', padding: 0, margin: 0 }}>
+
                 <div style={{ gridColumn: '1 / -1' }}>
                   <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '16px', color: '#64748b' }}>Identificación del Riesgo</h4>
                 </div>
@@ -693,13 +703,18 @@ export default function Risks() {
                   </div>
                 </div>
 
+                </fieldset>
+
                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setViewMode('table')}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar Riesgo Operativo'}</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setViewMode('table')}>{readOnlyForm ? 'Cerrar' : 'Cancelar'}</button>
+                  {!readOnlyForm && (
+                    <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar Riesgo Operativo'}</button>
+                  )}
                 </div>
               </form>
             </div>
-          )}
+            );
+          })()}
         </>
       )}
 
