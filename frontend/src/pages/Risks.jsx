@@ -1,88 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Edit2, Lock, Plus, CheckCircle, AlertTriangle, AlertOctagon, Download, CheckSquare, Printer } from 'lucide-react';
+import { Search, Edit2, Lock, Plus, CheckCircle, AlertTriangle, AlertOctagon, Download, CheckSquare, Printer, Trash2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { listarRiesgos, guardarRiesgo, eliminarRiesgo } from '../lib/risksApi';
 
 const SECTORES = [
   "Todos", "Gerencia de Operaciones", "Gerencia Comercial", "Asistencia Vial",
   "Mantenimiento", "SGI", "Recursos Humanos", "Sistemas", "Asuntos Legales"
 ];
 
-export const initialRisks = [
-  {
-    id: 'R-01',
-    riesgo: 'Servicio no conforme por errores del personal.',
-    causas: 'Competencia insuficiente. Falta de capacitación.',
-    consecuencias: 'Quejas y reclamos por fallas en la atención o incorrecta información. Insatisfacción del usuario.',
-    proceso: 'Gerencia Comercial',
-    probabilidad: 4,
-    impacto: 5,
-    decision: 'MITIGAR',
-    accionDecision: 'Aceptar el riesgo por decisión de la Organización. / Generar seguimiento y control de procesos.',
-    planAccion: '«Perfil y Descripción de Puesto» [PAU/03 – A2]. «Competencia y Formación» [PAU/05 – A9].',
-    fechaImplementacion: '2026-04-30',
-    responsable: 'JAU',
-    probabilidadResidual: 2,
-    impactoResidual: 2,
-    ocurrio: 'No',
-    eficacia: '',
-    motivoEficaz: '',
-    fechaEficacia: '',
-    responsableEficacia: '',
-    año: 2026
-  },
-  {
-    id: 'R-02',
-    riesgo: 'Malfuncionamiento de la Plataforma Web de Atención al Usuario «Wise CX».',
-    causas: 'Interrupciones totales o parciales en el flujo de fibra óptica.',
-    consecuencias: 'Imposibilidad y/o demoras para gestionar sugerencias, quejas y reclamos. Insatisfacción.',
-    proceso: 'Sistemas',
-    probabilidad: 3,
-    impacto: 4,
-    decision: 'MITIGAR',
-    accionDecision: 'Aceptar el riesgo por decisión de la Organización. / Generar seguimiento.',
-    planAccion: '«Mantenimiento Sistemas» [PAU/05 – A6]. «Evaluación de Proveedores Críticos» [PAU/06 – A1].',
-    fechaImplementacion: '2026-04-30',
-    responsable: 'JAU',
-    probabilidadResidual: 2,
-    impactoResidual: 3,
-    ocurrio: 'No',
-    eficacia: '',
-    motivoEficaz: '',
-    fechaEficacia: '',
-    responsableEficacia: '',
-    año: 2026
-  },
-  {
-    id: 'R-03',
-    riesgo: 'Derrame de sustancias peligrosas sobre la traza',
-    causas: 'Siniestro vial involucrando vehículos de carga de materiales peligrosos.',
-    consecuencias: 'Contaminación ambiental, corte de traza prolongado, riesgo de salud a terceros.',
-    proceso: 'Asistencia Vial',
-    probabilidad: 2,
-    impacto: 5,
-    decision: 'MITIGAR',
-    accionDecision: 'Contención inmediata y escalamiento a bomberos/defensa civil.',
-    planAccion: 'Protocolo específico de contención de derrames y simulacros anuales obligatorios.',
-    fechaImplementacion: '2026-06-01',
-    responsable: 'Gerente de Operaciones',
-    probabilidadResidual: 2,
-    impactoResidual: 4,
-    ocurrio: 'No',
-    eficacia: '',
-    motivoEficaz: '',
-    fechaEficacia: '',
-    responsableEficacia: '',
-    año: 2026
-  }
-];
 
 export default function Risks() {
   const { userRole, userSector } = useAuth();
   const isSGI = userRole === 'SGI';
   const [activeTab, setActiveTab] = useState('matriz'); // 'matriz' or 'validacion'
-  const [risks, setRisks] = useState(initialRisks);
+  const [risks, setRisks] = useState([]);
+  const [loadingRisks, setLoadingRisks] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('table');
   const [selectedRisk, setSelectedRisk] = useState(null);
@@ -101,6 +35,18 @@ export default function Risks() {
     firmaJSGI: ''
   });
   const [validationError, setValidationError] = useState('');
+
+  const cargarRiesgos = () => {
+    setLoadingRisks(true);
+    listarRiesgos()
+      .then(setRisks)
+      .catch(err => { console.error(err); setRisks([]); })
+      .finally(() => setLoadingRisks(false));
+  };
+
+  useEffect(() => {
+    cargarRiesgos();
+  }, []);
 
   // Check closure alert
   useEffect(() => {
@@ -129,14 +75,25 @@ export default function Risks() {
     return false;
   };
 
+  const [saving, setSaving] = useState(false);
+
   const handleSave = (e) => {
     e.preventDefault();
-    if (selectedRisk.id) {
-      setRisks(risks.map(r => r.id === selectedRisk.id ? selectedRisk : r));
-    } else {
-      setRisks([...risks, { ...selectedRisk, id: `R-${Date.now()}` }]);
-    }
-    setViewMode('table');
+    setSaving(true);
+    guardarRiesgo(selectedRisk)
+      .then(() => {
+        cargarRiesgos();
+        setViewMode('table');
+      })
+      .catch(err => alert('Error al guardar el riesgo: ' + err.message))
+      .finally(() => setSaving(false));
+  };
+
+  const handleDelete = (risk) => {
+    if (!window.confirm(`¿Eliminar el riesgo ${risk.id}? Esta acción no se puede deshacer.`)) return;
+    eliminarRiesgo(risk.id)
+      .then(cargarRiesgos)
+      .catch(err => alert('Error al eliminar: ' + err.message));
   };
 
   const handleImageUpload = (e, callback) => {
@@ -501,9 +458,16 @@ export default function Risks() {
                         </td>
                         <td style={{textAlign:'right', position: 'sticky', right: 0, backgroundColor: 'white'}}>
                           {canEdit(r.proceso) ? (
-                            <button className="btn btn-icon" onClick={() => { setSelectedRisk(r); setViewMode('form'); }}>
-                              <Edit2 size={16} />
-                            </button>
+                            <>
+                              <button className="btn btn-icon" onClick={() => { setSelectedRisk(r); setViewMode('form'); }}>
+                                <Edit2 size={16} />
+                              </button>
+                              {isSGI && (
+                                <button className="btn btn-icon" onClick={() => handleDelete(r)} title="Eliminar definitivamente">
+                                  <Trash2 size={16} color="#dc2626" />
+                                </button>
+                              )}
+                            </>
                           ) : (
                             <button className="btn btn-icon" disabled title="No tienes permisos para editar este sector">
                               <Lock size={16} color="#94a3b8" />
@@ -512,10 +476,17 @@ export default function Risks() {
                         </td>
                       </tr>
                     ))}
-                    {filteredRisks.length === 0 && (
+                    {!loadingRisks && filteredRisks.length === 0 && (
                       <tr>
                         <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                           No se encontraron riesgos para los filtros seleccionados.
+                        </td>
+                      </tr>
+                    )}
+                    {loadingRisks && (
+                      <tr>
+                        <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                          Cargando riesgos...
                         </td>
                       </tr>
                     )}
@@ -679,7 +650,7 @@ export default function Risks() {
 
                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setViewMode('table')}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary">Guardar Riesgo Operativo</button>
+                  <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar Riesgo Operativo'}</button>
                 </div>
               </form>
             </div>

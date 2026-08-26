@@ -5,7 +5,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker } from 'tesseract.js';
 import { rawData } from '../data/sgiData';
-import { initialRisks } from '../pages/Risks';
+import { listarRiesgos } from '../lib/risksApi';
 import { initialContext } from '../pages/Context';
 import { mockReviews } from '../pages/ManagementReview';
 
@@ -185,7 +185,10 @@ const ChatbotWidget = () => {
         systemPrompt += " Actualmente tienes acceso a la base de datos GLOBAL del Sistema de Gestión Integrado. Esto incluye Indicadores, Riesgos, Contexto Organizacional, Revisiones por la Dirección y EL CONTENIDO COMPLETO DE TODOS LOS DOCUMENTOS VIGENTES. Usa toda esta información para cruzar datos y responder con máximo detalle.";
         
         const indContext = "INDICADORES:\n" + rawData.map(r => `- Proceso: ${r[4]}, Indicador: ${r[5]}, Meta: ${r[6]}, Responsable: ${r[10]}`).join('\n');
-        const riskContext = "RIESGOS:\n" + initialRisks.map(r => `- Riesgo: ${r.riesgo}, Consecuencias: ${r.consecuencias}, Proceso: ${r.proceso}, Acción: ${r.accionDecision}`).join('\n');
+        const riesgosReales = await listarRiesgos().catch(() => []);
+        const riskContext = "RIESGOS:\n" + (riesgosReales.length
+          ? riesgosReales.map(r => `- Riesgo: ${r.riesgo}, Consecuencias: ${r.consecuencias}, Proceso: ${r.proceso}, Acción: ${r.accionDecision}`).join('\n')
+          : '(sin riesgos cargados todavía)');
         const ctxContext = "CONTEXTO:\n" + initialContext.map(c => `- Factor: ${c.factorCritico}, Contexto: ${c.contexto}, Riesgo: ${c.riesgo}, Plan: ${c.planAccion}`).join('\n');
         const revContext = "REVISIONES POR LA DIRECCIÓN:\n" + mockReviews.map(m => `- Año: ${m.year}, Salidas/Mejoras: ${m.data.step4_salidas_mejoras}, Recursos: ${m.data.step4_salidas_recursos}`).join('\n');
         
