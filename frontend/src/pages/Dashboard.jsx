@@ -44,6 +44,9 @@ const Dashboard = () => {
   const [activeGerencia, setActiveGerencia] = useState(null);
   const [comercialRows, setComercialRows] = useState({ quejas_reclamos: [], telepase: [], atencion: [], tiempo_respuesta: [] });
   const [comercialView, setComercialView] = useState('home');
+  const [comercialFiltroConcesion, setComercialFiltroConcesion] = useState('Todas');
+  const [comercialFiltroAnio, setComercialFiltroAnio] = useState('Todos');
+  const [comercialFiltroSitio, setComercialFiltroSitio] = useState('Todos');
   const [asistenciaMetrics, setAsistenciaMetrics] = useState([]);
   const [asistenciaView, setAsistenciaView] = useState('home');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -336,6 +339,20 @@ const Dashboard = () => {
 
   const renderComercial = () => {
     const MESES_ES_COM = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const SITIOS_COMERCIAL = ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui', 'Samborombón', 'Maipú', 'La Huella', 'Mar Chiquita', 'Gral. Madariaga'];
+
+    const todasLasFilas = [...comercialRows.quejas_reclamos, ...comercialRows.telepase, ...comercialRows.atencion, ...comercialRows.tiempo_respuesta];
+    const aniosDisponibles = Array.from(new Set(
+      todasLasFilas.filter(r => r.fecha).map(r => new Date(r.fecha + 'T00:00:00').getFullYear())
+    )).sort((a, b) => b - a);
+
+    const filtrarFilas = (rows) => rows.filter(r => {
+      if (!r.fecha) return false;
+      if (comercialFiltroAnio !== 'Todos' && String(new Date(r.fecha + 'T00:00:00').getFullYear()) !== comercialFiltroAnio) return false;
+      if (comercialFiltroConcesion !== 'Todas' && r.data?.concesion && r.data.concesion !== comercialFiltroConcesion) return false;
+      if (comercialFiltroSitio !== 'Todos' && r.data?.sitio && r.data.sitio !== comercialFiltroSitio) return false;
+      return true;
+    });
 
     const bucketPorMes = (rows) => {
       const map = {};
@@ -351,10 +368,10 @@ const Dashboard = () => {
 
     const sum = (entries, field) => entries.reduce((acc, e) => acc + (Number(e[field]) || 0), 0);
 
-    const qrBuckets = bucketPorMes(comercialRows.quejas_reclamos);
-    const tpBuckets = bucketPorMes(comercialRows.telepase);
-    const atBuckets = bucketPorMes(comercialRows.atencion);
-    const trBuckets = bucketPorMes(comercialRows.tiempo_respuesta);
+    const qrBuckets = bucketPorMes(filtrarFilas(comercialRows.quejas_reclamos));
+    const tpBuckets = bucketPorMes(filtrarFilas(comercialRows.telepase));
+    const atBuckets = bucketPorMes(filtrarFilas(comercialRows.atencion));
+    const trBuckets = bucketPorMes(filtrarFilas(comercialRows.tiempo_respuesta));
 
     const allKeys = Array.from(new Set([
       ...Object.keys(qrBuckets), ...Object.keys(tpBuckets), ...Object.keys(atBuckets), ...Object.keys(trBuckets)
@@ -511,18 +528,28 @@ const Dashboard = () => {
            <button onClick={toggleFullscreen} className="btn-portal" style={{ padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Pantalla Completa">
              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
            </button>
-           <select className="form-control" style={{ width: '200px', margin: 0, backgroundColor: 'rgba(255,255,255,0.9)' }}><option>Concesión: BALP</option><option>Concesión: SVIA</option></select>
-           <select className="form-control" style={{ width: '200px', margin: 0, backgroundColor: 'rgba(255,255,255,0.9)' }}><option>Año: 2024</option><option>Año: 2025</option></select>
-           <select className="form-control" style={{ width: '200px', margin: 0, backgroundColor: 'rgba(255,255,255,0.9)' }}><option>Sitio: Todos</option><option>Hudson</option><option>Dock Sud</option></select>
+           <select className="form-control" style={{ width: '200px', margin: 0, backgroundColor: 'rgba(255,255,255,0.9)' }} value={comercialFiltroConcesion} onChange={(e) => setComercialFiltroConcesion(e.target.value)}>
+             <option value="Todas">Concesión: Todas</option>
+             <option value="BALP">Concesión: BALP</option>
+             <option value="SVIA">Concesión: SVIA</option>
+           </select>
+           <select className="form-control" style={{ width: '200px', margin: 0, backgroundColor: 'rgba(255,255,255,0.9)' }} value={comercialFiltroAnio} onChange={(e) => setComercialFiltroAnio(e.target.value)}>
+             <option value="Todos">Año: Todos</option>
+             {aniosDisponibles.map(a => <option key={a} value={String(a)}>Año: {a}</option>)}
+           </select>
+           <select className="form-control" style={{ width: '200px', margin: 0, backgroundColor: 'rgba(255,255,255,0.9)' }} value={comercialFiltroSitio} onChange={(e) => setComercialFiltroSitio(e.target.value)}>
+             <option value="Todos">Sitio: Todos</option>
+             {SITIOS_COMERCIAL.map(s => <option key={s} value={s}>{s}</option>)}
+           </select>
         </div>
 
         {comercialView === 'atencion' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
-            {/* Row 1: Tasa de AtenciÃ³n TelefÃ³nica y Line Chart */}
+            {/* Row 1: Tasa de Atención Telefónica y Line Chart */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('Tasa de AtenciÃ³n TelefÃ³nica')}
+                {renderHeader('Tasa de Atención Telefónica')}
                 <div style={{ position: 'relative', width: '100%', height: '220px', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', paddingBottom: '20px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -542,7 +569,7 @@ const Dashboard = () => {
               </div>
 
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('Indicador AtenciÃ³n de llamadas (Cant. atendidas / Total entrantes) * 100')}
+                {renderHeader('Indicador Atención de llamadas (Cant. atendidas / Total entrantes) * 100')}
                 <div style={{ flex: 1, padding: '20px', minHeight: '220px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -638,7 +665,7 @@ const Dashboard = () => {
             {/* ROW 1: Quejas y Reclamos c/100k */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('Cantidad de Quejas cada 100.000 vehÃ­culos (â‰¤ 0,7)')}
+                {renderHeader('Cantidad de Quejas cada 100.000 vehículos (≤ 0,7)')}
                 <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -654,7 +681,7 @@ const Dashboard = () => {
               </div>
 
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('Cantidad de Reclamos cada 100.000 vehÃ­culos (â‰¤ 1,7)')}
+                {renderHeader('Cantidad de Reclamos cada 100.000 vehículos (≤ 1,7)')}
                 <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -670,10 +697,10 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* ROW 2: DistribuciÃ³n, TrÃ¡nsito, % Respuestas */}
+            {/* ROW 2: Distribución, Tránsito, % Respuestas */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr', gap: '16px' }}>
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('EvoluciÃ³n de Quejas y Reclamos (Valores Reales)')}
+                {renderHeader('Evolución de Quejas y Reclamos (Valores Reales)')}
                 <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -690,7 +717,7 @@ const Dashboard = () => {
               </div>
 
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('Cantidad de TrÃ¡nsito Pasante')}
+                {renderHeader('Cantidad de Tránsito Pasante')}
                 <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
@@ -698,14 +725,14 @@ const Dashboard = () => {
                       <XAxis dataKey="name" axisLine={false} tickLine={false} />
                       <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => (val/1000000).toFixed(1) + ' mill.'} />
                       <Tooltip formatter={(val) => val.toLocaleString() + ' veh.'} />
-                      <Area type="monotone" dataKey="transitoQR" name="TrÃ¡nsito" stroke="#3b82f6" fill="#93c5fd" label={{ position: 'top', formatter: (val) => (val/1000000).toFixed(1) + ' mill.', fill: '#0f2d6e', fontWeight: 'bold' }} />
+                      <Area type="monotone" dataKey="transitoQR" name="Tránsito" stroke="#3b82f6" fill="#93c5fd" label={{ position: 'top', formatter: (val) => (val/1000000).toFixed(1) + ' mill.', fill: '#0f2d6e', fontWeight: 'bold' }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                {renderHeader('% de respuestas al usuario â‰¤ 9 dÃ­as')}
+                {renderHeader('% de respuestas al usuario ≤ 9 días')}
                 <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -713,7 +740,7 @@ const Dashboard = () => {
                       <XAxis dataKey="name" axisLine={false} tickLine={false} />
                       <YAxis domain={[0, 100]} axisLine={false} tickLine={false} hide />
                       <Tooltip formatter={(val) => val.toFixed(1) + '%'} />
-                      <ReferenceLine y={90} stroke="#0f2d6e" strokeDasharray="3 3" label={{ position: 'top', value: 'Objetivo â‰¥ 90%', fill: '#0f2d6e', fontWeight: 'bold' }} />
+                      <ReferenceLine y={90} stroke="#0f2d6e" strokeDasharray="3 3" label={{ position: 'top', value: 'Objetivo ≥ 90%', fill: '#0f2d6e', fontWeight: 'bold' }} />
                       <Bar dataKey="tiempoResp" name="% Respuestas" fill="#4ade80" barSize={30} label={{ position: 'center', fill: 'white', fontWeight: 'bold', formatter: val => val.toFixed(0) + '%' }} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -723,11 +750,11 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* GESTIÃ“N TELEPASE */}
+        {/* GESTIÓN TELEPASE */}
         {comercialView === 'telepase' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
-            {/* ROW 1: Indicador Anual & Cantidad por AÃ±o */}
+            {/* ROW 1: Indicador Anual & Cantidad por Año */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '16px' }}>
                <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
                  {renderHeader('Indicador Anual TelePASE')}
@@ -747,7 +774,7 @@ const Dashboard = () => {
                </div>
 
                <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                 {renderHeader('Cantidad de trÃ¡nsito con TelePASE vs. TrÃ¡nsito total por AÃ±o')}
+                 {renderHeader('Cantidad de tránsito con TelePASE vs. Tránsito total por Año')}
                  <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                    <ResponsiveContainer width="100%" height="100%">
                      <ComposedChart data={[{ name: '2024', total: chartData.reduce((acc, c) => acc + c.transitoTotal, 0), telepase: chartData.reduce((acc, c) => acc + c.telepaseRaw, 0) }]} margin={{ top: 20, right: 30, left: 20, bottom: 0 }}>
@@ -756,7 +783,7 @@ const Dashboard = () => {
                        <YAxis axisLine={false} tickLine={false} tickFormatter={(val) => (val/1000000).toFixed(0) + ' mill.'} />
                        <Tooltip formatter={(val) => val.toLocaleString()} />
                        <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '10px' }} />
-                       <Bar dataKey="total" name="TrÃ¡nsito Total Pagante" fill="#93c5fd" barSize={150} label={{ position: 'center', fill: 'white', fontWeight: 'bold', formatter: val => val.toLocaleString() }} />
+                       <Bar dataKey="total" name="Tránsito Total Pagante" fill="#93c5fd" barSize={150} label={{ position: 'center', fill: 'white', fontWeight: 'bold', formatter: val => val.toLocaleString() }} />
                        <Line type="monotone" dataKey="telepase" name="Cantidad de Transito con TelePASE" stroke="#1e3a8a" strokeWidth={4} dot={{ r: 6, fill: '#1e3a8a' }} label={{ position: 'bottom', fill: '#1e3a8a', fontWeight: 'bold', formatter: val => val.toLocaleString(), dy: 15 }} />
                      </ComposedChart>
                    </ResponsiveContainer>
@@ -776,7 +803,7 @@ const Dashboard = () => {
                        <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={60} />
                        <Tooltip formatter={(val) => val.toFixed(1) + '%'} />
                        <ReferenceLine x={80} stroke="#0f2d6e" strokeDasharray="3 3" label={{ position: 'top', value: 'Obj. 80%', fill: '#0f2d6e', fontWeight: 'bold' }} />
-                       <Bar dataKey="telepase" name="ParticipaciÃ³n TelePASE" fill="#60a5fa" barSize={20} label={{ position: 'insideRight', fill: '#0f2d6e', fontWeight: 'bold', formatter: val => val.toFixed(1) + '%' }}>
+                       <Bar dataKey="telepase" name="Participación TelePASE" fill="#60a5fa" barSize={20} label={{ position: 'insideRight', fill: '#0f2d6e', fontWeight: 'bold', formatter: val => val.toFixed(1) + '%' }}>
                          {chartData.map((entry, index) => (
                            <Cell key={`cell-${index}`} fill={entry.telepase >= 80 ? '#4ade80' : (entry.telepase >= 70 ? '#fbbf24' : '#f87171')} />
                          ))}
@@ -787,7 +814,7 @@ const Dashboard = () => {
                </div>
 
                <div className="glass" style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                 {renderHeader('Cantidad de trÃ¡nsito con TelePASE vs. TrÃ¡nsito total por Mes')}
+                 {renderHeader('Cantidad de tránsito con TelePASE vs. Tránsito total por Mes')}
                  <div style={{ flex: 1, padding: '20px', minHeight: '250px' }}>
                    <ResponsiveContainer width="100%" height="100%">
                      <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
@@ -809,12 +836,12 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* CONFORMACIÃ“N DE ENCUESTAS */}
+        {/* CONFORMACIÓN DE ENCUESTAS */}
         {comercialView === 'encuestas' && (
           <div className="glass" style={{ ...cardBg, padding: '64px', textAlign: 'center' }}>
             <FileText size={48} color="#94a3b8" style={{ marginBottom: '16px' }} />
-            <h3 style={{ color: titleColor }}>MÃ³dulo de Encuestas</h3>
-            <p style={{ color: '#64748b' }}>Los datos de encuestas se estÃ¡n sincronizando con el sistema central.</p>
+            <h3 style={{ color: titleColor }}>Módulo de Encuestas</h3>
+            <p style={{ color: '#64748b' }}>Los datos de encuestas se están sincronizando con el sistema central.</p>
           </div>
         )}
 
@@ -872,7 +899,7 @@ const Dashboard = () => {
     const card = { backgroundColor: 'white', border: '1px solid #bfdbfe', borderRadius: '4px', overflow: 'hidden' };
     const hdr = (t) => <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '9px 12px', textAlign: 'center', fontWeight: 700, fontSize: '12px', lineHeight: '1.4' }}>{t}</div>;
 
-    // â”€â”€ Gauge con nÃºmero DEBAJO del arco (sin superposiciÃ³n) â”€â”€
+    // â”€â”€ Gauge con número DEBAJO del arco (sin superposición) â”€â”€
     const GaugeCCM = ({ value, label, objetivo, color }) => {
       const safe = Math.max(0, Math.min(100, value));
       const data = [{ value: safe, fill: color }, { value: 100 - safe, fill: '#e2e8f0' }];
@@ -891,7 +918,7 @@ const Dashboard = () => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          {/* NÃºmero DEBAJO del arco, en flujo normal */}
+          {/* Número DEBAJO del arco, en flujo normal */}
           <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
             <span style={{ fontSize: '30px', fontWeight: 900, color }}>{value.toFixed(0)} %</span>
           </div>
@@ -930,7 +957,7 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* Fila 1: Gauges + GrÃ¡fico mensual */}
+        {/* Fila 1: Gauges + Gráfico mensual */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: '12px', marginBottom: '12px' }}>
           <GaugeCCM value={pctDet} label="Tasa de Visualización en detección de contingencias" objetivo={65} color="#3b82f6" />
           <GaugeCCM value={pctCam} label="Disponibilidad de Cámaras"                            objetivo={90} color="#eab308" />
@@ -990,7 +1017,7 @@ const Dashboard = () => {
           </table>
         </div>
 
-        {/* Fila 3: CÃ¡maras + PMV â€” altura fija explÃ­cita */}
+        {/* Fila 3: Cámaras + PMV — altura fija explícita */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <div style={card}>
             {hdr('Indicador Disponibilidad de Cámaras')}
@@ -1021,7 +1048,7 @@ const Dashboard = () => {
                   <YAxis dataKey="trimestre" type="category" tick={{ fontSize: 12, fontWeight: 700 }} width={30} axisLine={false} tickLine={false} />
                   <Tooltip formatter={v => v + '%'} />
                   <ReferenceLine x={90} stroke="#dc2626" strokeDasharray="4 2"
-                    label={{ position: 'insideTopRight', value: 'Obj â‰¥ 90%', fill: '#dc2626', fontSize: 10 }} />
+                    label={{ position: 'insideTopRight', value: 'Obj ≥ 90%', fill: '#dc2626', fontSize: 10 }} />
                   <Bar dataKey="pct" fill="#3b82f6" barSize={30} radius={[0,4,4,0]}
                     label={{ position: 'right', fontSize: 12, fontWeight: 700, fill: '#1e40af', formatter: v => v > 0 ? v + ' %' : '' }} />
                 </BarChart>
@@ -2454,7 +2481,7 @@ const Dashboard = () => {
   };
 
   const renderCargaDatos = () => {
-     const title = activeGerencia === 'carga_av' ? 'Ger. PrevenciÃ³n y Seguridad Integral - AV' : 'Ger. PrevenciÃ³n y Seguridad Integral - CCM y AV';
+     const title = activeGerencia === 'carga_av' ? 'Ger. Prevención y Seguridad Integral - AV' : 'Ger. Prevención y Seguridad Integral - CCM y AV';
      
      const InputRow = ({ title, col1, col2, col3 }) => (
        <div style={{ backgroundColor: '#f8fafc', padding: '24px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
@@ -2480,9 +2507,9 @@ const Dashboard = () => {
        <div className="animate-fade-in delay-1" style={{ backgroundColor: 'white', padding: '40px', minHeight: '100vh', maxWidth: '1000px', margin: '0 auto' }}>
           <h2 style={{ color: '#0284c7', fontSize: '24px', marginBottom: '32px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>{title}</h2>
           
-          <InputRow title="Tasa de VisualizaciÃ³n CCM (â‰¥ 65%)" col1="Contingencias detectadas" col2="Total reportadas" col3="Resultado Calculado" />
-          <InputRow title="LiberaciÃ³n de calzada (â‰¤ 30 min) (â‰¥ 85%)" col1="Eventos â‰¤30 min" col2="Total eventos" col3="Resultado Calculado" />
-          <InputRow title="Velocidad Respuesta MÃ³viles AV (â‰¤ 15 min) (â‰¥ 85%)" col1="Contingencias â‰¤15 min" col2="Total contingencias" col3="Resultado Calculado" />
+          <InputRow title="Tasa de Visualización CCM (≥ 65%)" col1="Contingencias detectadas" col2="Total reportadas" col3="Resultado Calculado" />
+          <InputRow title="Liberación de calzada (≤ 30 min) (≥ 85%)" col1="Eventos ≤30 min" col2="Total eventos" col3="Resultado Calculado" />
+          <InputRow title="Velocidad Respuesta Móviles AV (≤ 15 min) (≥ 85%)" col1="Contingencias ≤15 min" col2="Total contingencias" col3="Resultado Calculado" />
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '32px' }}>
             <button className="btn-powerbi" style={{ backgroundColor: '#94a3b8', padding: '12px 24px' }} onClick={() => setActiveGerencia(null)}>Cancelar</button>
