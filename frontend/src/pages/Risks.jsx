@@ -28,6 +28,25 @@ const IMPACTO_OPCIONES = [
   { value: 5, label: 'Extremo' },
 ];
 
+// Bloque de lectura para la vista de detalle (clic en una fila): agrupa
+// campos relacionados en secciones con títulos, en vez del formulario de
+// edición con inputs, para que se lea como una ficha y no como un form vacío.
+const DetailSeccion = ({ titulo, children, ultima }) => (
+  <div style={{ marginBottom: ultima ? 0 : '28px', paddingBottom: ultima ? 0 : '28px', borderBottom: ultima ? 'none' : '1px solid var(--border-color)' }}>
+    <h4 style={{ color: '#64748b', marginBottom: '16px', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{titulo}</h4>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px' }}>
+      {children}
+    </div>
+  </div>
+);
+
+const DetailCampo = ({ label, valor, ancho }) => (
+  <div style={{ gridColumn: ancho === 'full' ? '1 / -1' : 'auto' }}>
+    <div style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{label}</div>
+    <div style={{ fontSize: '14px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>{valor || <span style={{ color: '#cbd5e1' }}>-</span>}</div>
+  </div>
+);
+
 
 export default function Risks() {
   const { userRole, userSector } = useAuth();
@@ -452,7 +471,7 @@ export default function Risks() {
                   </thead>
                   <tbody>
                     {filteredRisks.map(r => (
-                      <tr key={r.id} onClick={() => { setSelectedRisk(r); setViewMode('form'); }} style={{cursor: 'pointer'}}>
+                      <tr key={r.id} onClick={() => { setSelectedRisk(r); setViewMode('detail'); }} style={{cursor: 'pointer'}}>
                         <td style={{fontWeight: 'bold', color: 'var(--accent-color)'}}>{r.id}</td>
                         <td><span style={{maxWidth: '180px', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.riesgo}>{r.riesgo}</span></td>
                         <td>
@@ -518,25 +537,15 @@ export default function Risks() {
             </>
           )}
 
-          {viewMode === 'form' && (() => {
-            const readOnlyForm = !!(selectedRisk?.id && !canEdit(selectedRisk.sector));
-            return (
+          {viewMode === 'form' && (
             <div className="glass animate-fade-in delay-1" style={{ padding: '32px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h3 style={{ margin: 0, color: 'var(--accent-color)' }}>
-                  {readOnlyForm ? `Riesgo: ${selectedRisk.id} (solo lectura)` : selectedRisk?.id ? `Editar Riesgo: ${selectedRisk.id}` : 'Nuevo Riesgo Operativo'}
-                </h3>
+                <h3 style={{ margin: 0, color: 'var(--accent-color)' }}>{selectedRisk?.id ? `Editar Riesgo: ${selectedRisk.id}` : 'Nuevo Riesgo Operativo'}</h3>
                 <div className="badge" style={{ backgroundColor: '#e2e8f0', color: '#475569', fontSize: '14px' }}>
                   Año Matriz: <strong>{selectedRisk?.año}</strong>
                 </div>
               </div>
-              {readOnlyForm && (
-                <div style={{ marginBottom: '20px', padding: '12px 16px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Lock size={14} /> No tenés permisos para editar riesgos del sector "{selectedRisk?.sector}". Podés ver todos los datos, pero no modificarlos.
-                </div>
-              )}
               <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                <fieldset disabled={readOnlyForm} style={{ display: 'contents', border: 'none', padding: 0, margin: 0 }}>
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '16px', color: '#64748b' }}>Identificación del Riesgo</h4>
@@ -703,18 +712,76 @@ export default function Risks() {
                   </div>
                 </div>
 
-                </fieldset>
-
                 <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setViewMode('table')}>{readOnlyForm ? 'Cerrar' : 'Cancelar'}</button>
-                  {!readOnlyForm && (
-                    <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar Riesgo Operativo'}</button>
-                  )}
+                  <button type="button" className="btn btn-secondary" onClick={() => setViewMode('table')}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar Riesgo Operativo'}</button>
                 </div>
               </form>
             </div>
-            );
-          })()}
+          )}
+
+          {viewMode === 'detail' && selectedRisk && (
+            <div className="glass animate-fade-in delay-1" style={{ padding: '32px', maxWidth: '900px', margin: '0 auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                    <h3 style={{ margin: 0, color: 'var(--accent-color)' }}>{selectedRisk.id}</h3>
+                    <span className="badge" style={{ backgroundColor: '#e2e8f0', color: '#475569' }}>Año {selectedRisk.año}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {selectedRisk.proceso && <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>{selectedRisk.proceso}</span>}
+                    {selectedRisk.sector && <span className="badge" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>Sector: {selectedRisk.sector}</span>}
+                    {selectedRisk.concesion && <span className="badge" style={{ backgroundColor: '#f0fdf4', color: '#15803d' }}>Concesión: {selectedRisk.concesion}</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {canEdit(selectedRisk.sector) && (
+                    <button className="btn btn-secondary" onClick={() => setViewMode('form')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Edit2 size={16} /> Editar
+                    </button>
+                  )}
+                  <button className="btn btn-secondary" onClick={() => setViewMode('table')}>Cerrar</button>
+                </div>
+              </div>
+
+              <DetailSeccion titulo="Riesgo">
+                <DetailCampo label="¿Qué puede pasar?" valor={selectedRisk.riesgo} ancho="full" />
+                <DetailCampo label="Causas (¿Por qué?)" valor={selectedRisk.causas} />
+                <DetailCampo label="Consecuencias (¿Impacto?)" valor={selectedRisk.consecuencias} />
+              </DetailSeccion>
+
+              <DetailSeccion titulo="Evaluación del Riesgo Inherente">
+                <DetailCampo label="Probabilidad" valor={PROBABILIDAD_OPCIONES.find(o => o.value === selectedRisk.probabilidad)?.label || selectedRisk.probabilidad} />
+                <DetailCampo label="Impacto" valor={IMPACTO_OPCIONES.find(o => o.value === selectedRisk.impacto)?.label || selectedRisk.impacto} />
+                <div style={{ gridColumn: '1 / -1' }}>{getNivelBadge(selectedRisk.probabilidad, selectedRisk.impacto)}</div>
+              </DetailSeccion>
+
+              <DetailSeccion titulo="Decisión y Acciones de Control">
+                <DetailCampo label="Decisión Estratégica" valor={selectedRisk.decision} />
+                <DetailCampo label="Acción de la Decisión" valor={selectedRisk.accionDecision} />
+                <DetailCampo label="Planificación e Implementación" valor={selectedRisk.planAccion} ancho="full" />
+                <DetailCampo label="Fecha Implementación" valor={selectedRisk.fechaImplementacion} />
+                <DetailCampo label="Responsable" valor={selectedRisk.responsable} />
+              </DetailSeccion>
+
+              <DetailSeccion titulo="Evaluación del Riesgo Residual">
+                <DetailCampo label="Probabilidad Residual" valor={PROBABILIDAD_OPCIONES.find(o => o.value === selectedRisk.probabilidadResidual)?.label || selectedRisk.probabilidadResidual} />
+                <DetailCampo label="Impacto Residual" valor={IMPACTO_OPCIONES.find(o => o.value === selectedRisk.impactoResidual)?.label || selectedRisk.impactoResidual} />
+                <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  {getNivelBadge(selectedRisk.probabilidadResidual, selectedRisk.impactoResidual)}
+                  {getReevaluarText(selectedRisk.probabilidadResidual, selectedRisk.impactoResidual)}
+                </div>
+              </DetailSeccion>
+
+              <DetailSeccion titulo="Evaluación de la Eficacia" ultima>
+                <DetailCampo label="¿Sucedió el riesgo?" valor={selectedRisk.ocurrio} />
+                <DetailCampo label="¿Fueron eficaces las acciones?" valor={selectedRisk.eficacia} />
+                <DetailCampo label="Motivo" valor={selectedRisk.motivoEficaz} ancho="full" />
+                <DetailCampo label="Fecha eval. eficacia" valor={selectedRisk.fechaEficacia} />
+                <DetailCampo label="Resp. eval. eficacia" valor={selectedRisk.responsableEficacia} />
+              </DetailSeccion>
+            </div>
+          )}
         </>
       )}
 
