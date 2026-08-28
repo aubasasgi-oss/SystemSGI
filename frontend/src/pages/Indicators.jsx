@@ -1,7 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Target, Search, Edit2, Lock, Plus, History, CheckCircle, Clock } from 'lucide-react';
-import { listarIndicadores, actualizarMetaIndicador, listarHistorialIndicadores, agregarHistorialIndicador } from '../lib/indicadoresApi';
+import { listarIndicadores, actualizarMetaIndicador, listarHistorialIndicadores, agregarHistorialIndicador, insertarIndicador } from '../lib/indicadoresApi';
+
+const NUEVO_INDICADOR_VACIO = {
+  anio: new Date().getFullYear(), documento: 'BALP', obj_num: '', norma: 'ISO 9001',
+  proceso: '', indicador: '', meta: '', tipo: 'Maximizar', frecuencia: 'Mensual',
+  algoritmo: '', responsable: '', estrategia: '', vigencia: ''
+};
 
 const Indicators = () => {
   const { checkPermission, userRole, userSector } = useAuth();
@@ -33,6 +40,9 @@ const Indicators = () => {
   // Modals state
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [newIndicatorModalOpen, setNewIndicatorModalOpen] = useState(false);
+  const [newIndicatorForm, setNewIndicatorForm] = useState(NUEVO_INDICADOR_VACIO);
+  const [savingNewIndicator, setSavingNewIndicator] = useState(false);
   const [activeInd, setActiveInd] = useState(null);
   const [newMeta, setNewMeta] = useState('');
   const [reviewComment, setReviewComment] = useState('');
@@ -103,6 +113,26 @@ const Indicators = () => {
       .finally(() => setSavingReview(false));
   };
 
+  const openNewIndicator = () => {
+    setNewIndicatorForm(NUEVO_INDICADOR_VACIO);
+    setNewIndicatorModalOpen(true);
+  };
+
+  const saveNewIndicator = () => {
+    if (!newIndicatorForm.proceso || !newIndicatorForm.indicador || !newIndicatorForm.responsable) {
+      alert('Completá al menos Proceso, Indicador y Responsable.');
+      return;
+    }
+    setSavingNewIndicator(true);
+    insertarIndicador({ ...newIndicatorForm, anio: Number(newIndicatorForm.anio), obj_num: newIndicatorForm.obj_num ? Number(newIndicatorForm.obj_num) : null })
+      .then(() => {
+        cargarIndicadores();
+        setNewIndicatorModalOpen(false);
+      })
+      .catch(err => alert('Error al crear el indicador: ' + err.message))
+      .finally(() => setSavingNewIndicator(false));
+  };
+
   return (
     <div>
       <div className="module-header animate-fade-in">
@@ -117,7 +147,7 @@ const Indicators = () => {
             <History size={16} /> Historial Global
           </button>
           {checkPermission('SGI') && (
-            <button className="btn btn-primary" style={{ height: 'fit-content' }}>
+            <button className="btn btn-primary" style={{ height: 'fit-content' }} onClick={openNewIndicator}>
               <Plus size={16} /> Nuevo Indicador
             </button>
           )}
@@ -243,7 +273,7 @@ const Indicators = () => {
       </div>
 
       {/* Review Modal */}
-      {reviewModalOpen && activeInd && (
+      {reviewModalOpen && activeInd && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="glass animate-fade-in" style={{ width: '500px', padding: '24px', borderRadius: '12px' }}>
             <h3 style={{ marginTop: 0, color: 'var(--text-primary)', marginBottom: '16px' }}>Revisión Anual de Meta</h3>
@@ -269,11 +299,12 @@ const Indicators = () => {
               <button className="btn btn-primary" onClick={saveReview} disabled={savingReview}>{savingReview ? 'Guardando...' : 'Guardar Revisión'}</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* History Modal */}
-      {historyModalOpen && (
+      {historyModalOpen && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="glass animate-fade-in" style={{ width: '700px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', borderRadius: '12px' }}>
             <h3 style={{ marginTop: 0, color: 'var(--text-primary)', marginBottom: '16px' }}>Historial de Revisiones (Auditoría)</h3>
@@ -312,7 +343,88 @@ const Indicators = () => {
               <button className="btn btn-secondary" onClick={() => setHistoryModalOpen(false)}>Cerrar Historial</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* New Indicator Modal */}
+      {newIndicatorModalOpen && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto', padding: '40px 0' }}>
+          <div className="glass animate-fade-in" style={{ width: '600px', maxWidth: '90vw', padding: '24px', borderRadius: '12px' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--text-primary)', marginBottom: '16px' }}>Nuevo Indicador</h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Año</label>
+                <input type="number" className="form-control" value={newIndicatorForm.anio} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, anio: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Documento (Concesión)</label>
+                <select className="form-control" value={newIndicatorForm.documento} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, documento: e.target.value })}>
+                  <option value="BALP">BALP</option>
+                  <option value="SVIA">SVIA</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>N° de Objetivo</label>
+                <input type="number" className="form-control" value={newIndicatorForm.obj_num} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, obj_num: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Norma</label>
+                <select className="form-control" value={newIndicatorForm.norma} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, norma: e.target.value })}>
+                  <option value="ISO 9001">ISO 9001</option>
+                  <option value="ISO 39001">ISO 39001</option>
+                  <option value="ISO 9001 / ISO 39001">ISO 9001 / ISO 39001</option>
+                </select>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Proceso</label>
+                <input type="text" className="form-control" value={newIndicatorForm.proceso} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, proceso: e.target.value })} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Indicador</label>
+                <input type="text" className="form-control" value={newIndicatorForm.indicador} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, indicador: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Meta</label>
+                <input type="text" className="form-control" placeholder="Ej: ≥ 80%" value={newIndicatorForm.meta} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, meta: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Tipo</label>
+                <select className="form-control" value={newIndicatorForm.tipo} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, tipo: e.target.value })}>
+                  <option value="Maximizar">Maximizar</option>
+                  <option value="Minimizar">Minimizar</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Frecuencia</label>
+                <input type="text" className="form-control" placeholder="Mensual, Trimestral..." value={newIndicatorForm.frecuencia} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, frecuencia: e.target.value })} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Responsable (sector)</label>
+                <input type="text" className="form-control" value={newIndicatorForm.responsable} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, responsable: e.target.value })} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Algoritmo de cálculo</label>
+                <input type="text" className="form-control" value={newIndicatorForm.algoritmo} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, algoritmo: e.target.value })} />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Estrategia</label>
+                <textarea className="form-control" rows="2" value={newIndicatorForm.estrategia} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, estrategia: e.target.value })}></textarea>
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Vigencia</label>
+                <input type="text" className="form-control" placeholder="Ej: Ene.2026–Dic.2026" value={newIndicatorForm.vigencia} onChange={e => setNewIndicatorForm({ ...newIndicatorForm, vigencia: e.target.value })} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
+              <button className="btn btn-secondary" onClick={() => setNewIndicatorModalOpen(false)} disabled={savingNewIndicator}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveNewIndicator} disabled={savingNewIndicator}>{savingNewIndicator ? 'Guardando...' : 'Crear Indicador'}</button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

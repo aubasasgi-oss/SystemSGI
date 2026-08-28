@@ -6,6 +6,15 @@ export async function listarIndicadores() {
   return data || [];
 }
 
+export async function insertarIndicador(indicador) {
+  const { data: existentes, error: selErr } = await supabase.from('sgi_indicadores').select('id').order('id', { ascending: false }).limit(1);
+  if (selErr) throw selErr;
+  const nextId = existentes && existentes[0] ? existentes[0].id + 1 : 1;
+  const { error } = await supabase.from('sgi_indicadores').insert({ id: nextId, ...indicador });
+  if (error) throw error;
+  return nextId;
+}
+
 export async function actualizarMetaIndicador(id, meta) {
   const { error } = await supabase
     .from('sgi_indicadores')
