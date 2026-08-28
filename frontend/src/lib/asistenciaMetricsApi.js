@@ -13,6 +13,15 @@ export async function listarAsistenciaMetrics(tipo) {
   return data || [];
 }
 
+export async function listarAsistenciaMetricsMultiples(tipos) {
+  const { data, error } = await supabase
+    .from('sgi_asistencia_metrics')
+    .select('*')
+    .in('tipo', tipos);
+  if (error) throw error;
+  return data || [];
+}
+
 export async function guardarAsistenciaMetric(tipo, id, fecha, data) {
   if (id) {
     const { error } = await supabase

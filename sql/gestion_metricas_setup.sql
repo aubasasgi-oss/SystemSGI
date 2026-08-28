@@ -15,5 +15,10 @@ create table if not exists sgi_metrics (
   unique (sector, year, month)
 );
 
+-- Postgres activa RLS por defecto en tablas nuevas; la app no usa auth por
+-- fila, así que la dejamos deshabilitada acá (antes dependía de un script
+-- aparte, gestion_metricas_fix_rls.sql, que a veces no se corría).
+alter table sgi_metrics disable row level security;
+
 grant select, insert, update, delete on table sgi_metrics to anon, authenticated;
 grant usage on schema public to anon, authenticated;

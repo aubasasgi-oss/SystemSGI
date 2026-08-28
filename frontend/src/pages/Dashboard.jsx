@@ -4,6 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import Papa from 'papaparse';
 import { obtenerMetricaMensual } from '../lib/metricsApi';
 import { listarComercialMetricsMultiples } from '../lib/comercialMetricsApi';
+import { listarAsistenciaMetricsMultiples } from '../lib/asistenciaMetricsApi';
+import { listarOperacionesMetrics } from '../lib/operacionesMetricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -47,13 +49,10 @@ const Dashboard = () => {
   const [comercialFiltroConcesion, setComercialFiltroConcesion] = useState('Todas');
   const [comercialFiltroAnio, setComercialFiltroAnio] = useState('Todos');
   const [comercialFiltroSitio, setComercialFiltroSitio] = useState('Todos');
-  const [asistenciaMetrics, setAsistenciaMetrics] = useState([]);
+  const [asistenciaRows, setAsistenciaRows] = useState({ gestion_av1: [], factor_desempeno: [], serv_1er_aux: [], serv_aux_mecanico: [] });
   const [asistenciaView, setAsistenciaView] = useState('home');
+  const [asistenciaAnio, setAsistenciaAnio] = useState(new Date().getFullYear());
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [vehicleRecords, setVehicleRecords] = useState([]);
-  const [vehicleAnio, setVehicleAnio] = useState(new Date().getFullYear());
-  const [asistenciaMes, setAsistenciaMes] = useState([]);
-  const MESES_ORDEN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const [ccmMetrics, setCcmMetrics] = useState([]);
   const [ccmAnio, setCcmAnio] = useState(new Date().getFullYear());
   const [ccmTrimestre, setCcmTrimestre] = useState(null); // null = todos
@@ -106,28 +105,18 @@ const Dashboard = () => {
         })
         .catch(console.error);
     } else if (activeGerencia === 'asistencia') {
-      obtenerMetricaMensual('asistencia')
-        .then(data => {
-            const sorted = data.sort((a,b) => {
-               const months = { 'Enero':1, 'Febrero':2, 'Marzo':3, 'Abril':4, 'Mayo':5, 'Junio':6, 'Julio':7, 'Agosto':8, 'Septiembre':9, 'Octubre':10, 'Noviembre':11, 'Diciembre':12 };
-               if (a.year !== b.year) return a.year - b.year;
-               return (months[a.month]||0) - (months[a.month]||0);
-            });
-            setAsistenciaMetrics(sorted);
+      listarAsistenciaMetricsMultiples(['gestion_av1', 'factor_desempeno', 'serv_1er_aux', 'serv_aux_mecanico'])
+        .then(rows => {
+          setAsistenciaRows({
+            gestion_av1: rows.filter(r => r.tipo === 'gestion_av1'),
+            factor_desempeno: rows.filter(r => r.tipo === 'factor_desempeno'),
+            serv_1er_aux: rows.filter(r => r.tipo === 'serv_1er_aux'),
+            serv_aux_mecanico: rows.filter(r => r.tipo === 'serv_aux_mecanico'),
+          });
         })
         .catch(console.error);
     }
   }, [activeGerencia]);
-
-  // Fetch vehicle records for the desempeno dashboard
-  useEffect(() => {
-    if (activeGerencia === 'asistencia') {
-      fetch(`http://localhost:5001/api/vehicles?anio=${vehicleAnio}`)
-        .then(r => r.json())
-        .then(d => setVehicleRecords(Array.isArray(d) ? d : []))
-        .catch(() => setVehicleRecords([]));
-    }
-  }, [activeGerencia, vehicleAnio]);
 
   useEffect(() => {
     if (activeGerencia === 'ccm') {
@@ -201,13 +190,23 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'operaciones_spp') {
-      obtenerMetricaMensual('operaciones_spp', operacionesAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
-          });
-          setOperacionesMetrics(sorted);
+      const MESES_IDX = { 0:'Enero',1:'Febrero',2:'Marzo',3:'Abril',4:'Mayo',5:'Junio',6:'Julio',7:'Agosto',8:'Septiembre',9:'Octubre',10:'Noviembre',11:'Diciembre' };
+      listarOperacionesMetrics()
+        .then(rows => {
+          const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
+          const transformed = (Array.isArray(rows) ? rows : [])
+            .filter(r => r.fecha)
+            .map(r => {
+              const d = new Date(r.fecha + 'T00:00:00');
+              return {
+                year: d.getFullYear(),
+                month: MESES_IDX[d.getMonth()] || 'Enero',
+                data: { op_spp: r.data || {} },
+              };
+            })
+            .filter(r => r.year === operacionesAnio)
+            .sort((a, b) => (mo[a.month]||0) - (mo[b.month]||0));
+          setOperacionesMetrics(transformed);
         })
         .catch(() => setOperacionesMetrics([]));
     }
@@ -2115,8 +2114,9 @@ const Dashboard = () => {
        );
     }
 
-    const cardBg = { backgroundColor: 'white', border: '1px solid #bfdbfe', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden' };
-    const titleColor = '#0f2d6e';
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    const cardBg = { backgroundColor: 'white', border: '1px solid #bfdbe6', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', overflow: 'hidden' };
 
     const renderHeader = (title) => (
       <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
@@ -2125,11 +2125,12 @@ const Dashboard = () => {
     );
 
     const GaugeChart = ({ value, label, color, target }) => {
-       const data = [{ name: 'A', value: value, fill: color }, { name: 'B', value: 100 - value, fill: '#e2e8f0' }];
+       const safe = Math.max(0, Math.min(100, Number(value) || 0));
+       const data = [{ name: 'A', value: safe, fill: color }, { name: 'B', value: 100 - safe, fill: '#e2e8f0' }];
        return (
          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%', ...cardBg }}>
            <p style={{ color: 'white', backgroundColor: '#3b82f6', padding: '10px', margin: 0, width: '100%', textAlign: 'center', fontWeight: 'bold', fontSize: '13px', minHeight: '56px', display:'flex', alignItems:'center', justifyContent:'center' }}>{label}</p>
-           {target && <div style={{ position: 'absolute', top: '70px', right: '20px', fontSize: '16px', fontWeight: 'bold', color: '#0f2d6e' }}>{target} %</div>}
+           {target != null && <div style={{ position: 'absolute', top: '70px', right: '20px', fontSize: '16px', fontWeight: 'bold', color: '#0f2d6e' }}>{target} %</div>}
            <div style={{ height: '120px', width: '100%', marginTop: '10px' }}>
              <ResponsiveContainer width="100%" height="100%">
                <PieChart>
@@ -2138,7 +2139,7 @@ const Dashboard = () => {
              </ResponsiveContainer>
            </div>
            <div style={{ textAlign: 'center', width: '100%', paddingTop: '5px' }}>
-              <span style={{ fontSize: '28px', fontWeight: 'bold', color: color }}>{value.toFixed(1)} %</span>
+              <span style={{ fontSize: '28px', fontWeight: 'bold', color }}>{Number(value || 0).toFixed(1)} %</span>
            </div>
            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px 10px', fontSize: '12px', fontWeight: 'bold', color: '#64748b', width: '100%' }}>
               <span>0,0 %</span>
@@ -2148,44 +2149,66 @@ const Dashboard = () => {
        );
     };
 
-    const GaugeChartDecimal = ({ value, label, color, max }) => {
-       const percentage = (value / max) * 100;
-       const data = [{ name: 'A', value: percentage, fill: color }, { name: 'B', value: 100 - percentage, fill: '#e2e8f0' }];
-       return (
-         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', height: '100%' }}>
-           <p style={{ color: 'black', margin: 0, width: '100%', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', textDecoration: 'underline' }}>{label}</p>
-           <p style={{ color: '#64748b', fontSize: '11px', textAlign: 'center', margin: '4px 0 0 0' }}>Exposición Operativo en Asistencias</p>
-           <div style={{ height: '120px', width: '100%', marginTop: '10px' }}>
-             <ResponsiveContainer width="100%" height="100%">
-               <PieChart>
-                 <Pie data={data} cx="50%" cy="100%" startAngle={180} endAngle={0} innerRadius="70%" outerRadius="100%" dataKey="value" stroke="none" />
-               </PieChart>
-             </ResponsiveContainer>
-           </div>
-           <div style={{ textAlign: 'center', width: '100%', paddingTop: '5px' }}>
-              <span style={{ fontSize: '28px', fontWeight: 'bold', color: '#475569' }}>{value.toFixed(2)}</span>
-           </div>
-           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px 10px', fontSize: '12px', fontWeight: 'bold', color: '#64748b', width: '100%' }}>
-              <span>0,00</span>
-              <span>{max.toFixed(2)}</span>
-           </div>
-         </div>
-       );
-    };
+    const mesDeFecha = (fecha) => { const d = new Date(fecha + 'T00:00:00'); return d.getMonth(); };
+    const anioDeFecha = (fecha) => new Date(fecha + 'T00:00:00').getFullYear();
+    const sumField = (rows, field) => rows.reduce((a, r) => a + (Number(r.data?.[field]) || 0), 0);
+    const pctOf = (num, den) => (den ? (num / den) * 100 : null);
 
-    const currentMonth = asistenciaMes.length > 0 
-       ? asistenciaMetrics.find(m => m.month.startsWith(asistenciaMes[asistenciaMes.length - 1])) || (asistenciaMetrics.length > 0 ? asistenciaMetrics[asistenciaMetrics.length - 1] : null)
-       : (asistenciaMetrics.length > 0 ? asistenciaMetrics[asistenciaMetrics.length - 1] : null);
-    const cd = currentMonth ? currentMonth.data : {};
-    
-    let filteredMetrics = asistenciaMetrics;
-    if (asistenciaMes.length > 0) {
-        filteredMetrics = asistenciaMetrics.filter(m => asistenciaMes.includes(m.month));
-    }
-    const chartData = filteredMetrics.map(m => ({
-        name: m.month.substring(0,3),
-        ...m.data
+    const enAnio = (rows) => (rows || []).filter(r => r.fecha && anioDeFecha(r.fecha) === asistenciaAnio);
+
+    const g1 = enAnio(asistenciaRows.gestion_av1);
+    const fd = enAnio(asistenciaRows.factor_desempeno);
+    const s1a = enAnio(asistenciaRows.serv_1er_aux);
+    const sam = enAnio(asistenciaRows.serv_aux_mecanico);
+
+    const g1Monthly = MESES.map((m, idx) => {
+      const rows = g1.filter(r => mesDeFecha(r.fecha) === idx);
+      const e15ok = sumField(rows, 'eventos_15min_ok');
+      const e15tot = sumField(rows, 'eventos_15min_total');
+      const e23ok = sumField(rows, 'eventos_23min_ok');
+      const e23tot = sumField(rows, 'eventos_23min_total');
+      const aok = sumField(rows, 'aux_mec_ok');
+      const atot = sumField(rows, 'aux_mec_total');
+      const sok = sumField(rows, 'sanit_ok');
+      const stot = sumField(rows, 'sanit_total');
+      return {
+        name: m.slice(0, 3),
+        ind15: pctOf(e15ok, e15tot),
+        ind23: pctOf(e23ok, e23tot),
+        indAux: pctOf(aok, atot),
+        indSan: pctOf(sok, stot),
+      };
+    });
+
+    const ind15Gral = pctOf(sumField(g1, 'eventos_15min_ok'), sumField(g1, 'eventos_15min_total'));
+    const ind23Gral = pctOf(sumField(g1, 'eventos_23min_ok'), sumField(g1, 'eventos_23min_total'));
+    const indAuxGral = pctOf(sumField(g1, 'aux_mec_ok'), sumField(g1, 'aux_mec_total'));
+    const indSanGral = pctOf(sumField(g1, 'sanit_ok'), sumField(g1, 'sanit_total'));
+
+    const totalAccidentes = sumField(fd, 'cant_accidentes');
+    const totalKm = sumField(fd, 'km_recorridos');
+    const totalAsistencias = sumField(fd, 'cant_asistencias');
+    const exposicion = pctOf(totalAccidentes, totalAsistencias);
+
+    const porMovil = {};
+    fd.forEach(r => {
+      const movil = r.data?.movil;
+      if (!movil) return;
+      if (!porMovil[movil]) porMovil[movil] = { movil, accidentes: 0, km: 0 };
+      porMovil[movil].accidentes += Number(r.data?.accidentes_movil || 0);
+      porMovil[movil].km += Number(r.data?.km_recorridos || 0);
+    });
+    const factorPorMovil = Object.values(porMovil).map(m => ({
+      ...m,
+      factor: m.km ? m.accidentes / m.km : null,
     }));
+    const siniestrosData = factorPorMovil.map(m => ({ movil: m.movil, siniestros: m.accidentes })).sort((a, b) => b.siniestros - a.siniestros);
+
+    const equipPorBase = s1a.map(r => ({ base: r.data?.base || '—', valor: Number(r.data?.indicador_equipamiento) || 0 }));
+    const indEquipGral = equipPorBase.length ? (equipPorBase.reduce((a, b) => a + b.valor, 0) / equipPorBase.length) : null;
+    const conformidades = sumField(sam, 'conformidades');
+    const disconformidades = sumField(sam, 'disconformidades');
+    const indConfMec = pctOf(conformidades, conformidades + disconformidades);
 
     return (
       <div className="animate-fade-in delay-1" style={bgStyle}>
@@ -2196,286 +2219,181 @@ const Dashboard = () => {
            <h2 style={{ margin: 0, color: 'white', fontSize: '24px', fontWeight: 'bold', textTransform: 'uppercase', flex: 1, textAlign: 'center' }}>
              {asistenciaView === 'sv' ? 'Gestión de la Seguridad Vial' : asistenciaView === 'desempeno' ? 'Factores de Desempeño - Seguridad Vial' : 'Ambulancia y Auxilio Mecánico'}
            </h2>
-           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <div style={{ display: 'flex', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden', maxWidth: '350px' }}>
-                <div style={{ display: 'flex', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                  <button onClick={() => setAsistenciaMes([])} style={{ padding: '6px 12px', border: 'none', borderRight: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: asistenciaMes.length === 0 ? '#3b82f6' : 'transparent', color: asistenciaMes.length === 0 ? 'white' : '#475569' }}>Todos</button>
-                  {MESES_ORDEN.map(m => (
-                    <button key={m} onClick={() => {
-                       if (asistenciaMes.includes(m)) setAsistenciaMes(asistenciaMes.filter(x => x !== m));
-                       else setAsistenciaMes([...asistenciaMes, m]);
-                    }}
-                      style={{ padding: '6px 12px', border: 'none', borderRight: '1px solid #cbd5e1', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: asistenciaMes.includes(m) ? '#3b82f6' : 'transparent', color: asistenciaMes.includes(m) ? 'white' : '#475569' }}>
-                      {m.slice(0,3)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <input type="number" value={vehicleAnio} onChange={e => setVehicleAnio(Number(e.target.value))}
-                style={{ width: '80px', padding: '6px 8px', borderRadius: '4px', border: 'none', fontWeight: 700, color: '#1e40af', fontSize: '13px' }} />
-             {asistenciaView === 'desempeno' && (
-                <a href="/flota" style={{ backgroundColor: '#1e40af', color: 'white', padding: '8px 14px', borderRadius: '4px', fontSize: '13px', fontWeight: 700, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-                  ✏️ Cargar datos de flota
-                </a>
-              )}
-             <button onClick={toggleFullscreen} style={{ backgroundColor: 'white', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer' }} title="Pantalla Completa">
-               {isFullscreen ? <Minimize size={20} color="#2563eb" /> : <Maximize size={20} color="#2563eb" />}
-             </button>
+           <div style={{ display: 'flex', gap: '6px', backgroundColor: '#1e40af', borderRadius: '4px', padding: '2px' }}>
+             {[asistenciaAnio - 1, asistenciaAnio, asistenciaAnio + 1].map(y => (
+               <button key={y} onClick={() => setAsistenciaAnio(y)} style={{ padding: '5px 12px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px', background: y === asistenciaAnio ? 'white' : 'transparent', color: y === asistenciaAnio ? '#1e40af' : 'white' }}>{y}</button>
+             ))}
            </div>
+           <button onClick={toggleFullscreen} style={{ backgroundColor: 'white', border: 'none', padding: '8px', borderRadius: '4px', cursor: 'pointer' }} title="Pantalla Completa">
+             {isFullscreen ? <Minimize size={20} color="#2563eb" /> : <Maximize size={20} color="#2563eb" />}
+           </button>
         </div>
 
-        {asistenciaView === 'sv' && cd && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
-             {/* Izquierda: Gauges */}
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <GaugeChart value={(cd.lib_calzada?.ok / cd.lib_calzada?.tot) * 100 || 86} label="Cumplimiento liberacion de calzada por obstaculos (% eventos tiempos ≤ 30 min)" color="#f97316" target="85" />
-                <GaugeChart value={cd.moviles_av_15m || 89.6} label="Cumplimiento veloc. respuesta Moviles AV (% eventos tiempos ≤ 15min)" color="#b91c1c" target="85" />
-                <GaugeChart value={cd.moviles_av_23m_troncal || 94.6} label="Cumplimiento veloc. respuesta Moviles AV (% eventos tiempos ≤ 23min) troncal km42-52 Desc" color="#eab308" target="85" />
-             </div>
-
-             {/* Derecha: Barras y Lineas */}
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', height: '350px' }}>
-                   {/* Combo Chart */}
-                   <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                      {renderHeader('Eventos de liberacion de calzada < 30min Vs. Total de eventos')}
-                      <div style={{ flex: 1, padding: '10px' }}>
-                         <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={chartData}>
-                               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                               <XAxis dataKey="name" tick={{fontSize: 12}} />
-                               <YAxis yAxisId="left" tick={{fontSize: 12}} />
-                               <YAxis yAxisId="right" orientation="right" domain={[60, 100]} hide />
-                               <Tooltip />
-                               <Bar yAxisId="left" dataKey="lib_calzada.ok" fill="#3b82f6" name="Liberacion < 30min" barSize={15} />
-                               <Bar yAxisId="left" dataKey="lib_calzada.tot" fill="#1e3a8a" name="Total Eventos" barSize={15} />
-                               <Line yAxisId="right" type="monotone" dataKey={(d) => (d.lib_calzada.ok/d.lib_calzada.tot)*100} stroke="#f97316" strokeWidth={3} name="% Cumplimiento" dot={{r:4}} label={{position:'top', fill:'#f97316', fontWeight:'bold', formatter: v => Math.round(v)+'%'}} />
-                            </ComposedChart>
-                         </ResponsiveContainer>
-                      </div>
-                   </div>
-
-                   {/* Barras Horizontales */}
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ ...cardBg, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                         {renderHeader('Cumplimiento de velocidad de respuesta ante una contingencia - Ambulancias')}
-                         <div style={{ flex: 1, padding: '10px' }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                               <BarChart layout="vertical" data={chartData} margin={{top:0, right:30, left:0, bottom:0}}>
-                                 <XAxis type="number" domain={[0, 100]} hide />
-                                 <YAxis dataKey="name" type="category" tick={{fontSize: 10}} width={40} axisLine={false} tickLine={false} />
-                                 <Bar dataKey="velocidad_amb" fill="#fca5a5" barSize={10} label={{ position: 'insideRight', fill: 'white', fontSize: 10, fontWeight: 'bold', formatter: v => Math.round(v)+' %' }} />
-                               </BarChart>
-                            </ResponsiveContainer>
-                         </div>
-                      </div>
-                      <div style={{ ...cardBg, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                         {renderHeader('Cumplimiento de velocidad de respuesta ante una contingencia - Auxilio Mecanico')}
-                         <div style={{ flex: 1, padding: '10px' }}>
-                            <ResponsiveContainer width="100%" height="100%">
-                               <BarChart layout="vertical" data={chartData} margin={{top:0, right:30, left:0, bottom:0}}>
-                                 <XAxis type="number" domain={[0, 100]} hide />
-                                 <YAxis dataKey="name" type="category" tick={{fontSize: 10}} width={40} axisLine={false} tickLine={false} />
-                                 <Bar dataKey="velocidad_mec" fill="#eab308" barSize={10} />
-                               </BarChart>
-                            </ResponsiveContainer>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', height: '240px' }}>
-                   <GaugeChart value={cd.aux_mec_55m || 98} label="Cumplimiento velocidad de respuesta auxilio mecanico (% eventos ≤ 55 min)" color="#7f1d1d" target="85" />
-                   <GaugeChart value={cd.sanitaria_15m_tol || 93.7} label="Cumplimiento veloc. respuesta sanitaria (% ≤ 15min_Toler*25min)" color="#1e3a8a" target="100" />
-                </div>
-             </div>
-          </div>
-        )}
-
-        {asistenciaView === 'desempeno' && cd && (() => {
-           // Compute vehicle record metrics
-           const vTotal = vehicleRecords.length;
-           const vConDoc = vehicleRecords.filter(r => r.doc_y_equipamiento === 'Si').length;
-           const vConFalla = vehicleRecords.filter(r => r.falla_sistema_critico === 1).length;
-           const vMuertos = vehicleRecords.reduce((a, r) => a + (r.muertos_heridos_graves || 0), 0);
-           const pctConformidad = vTotal > 0 ? (vConDoc / vTotal) * 100 : (cd.conformidad_legal || 100);
-           const pctFallas = vTotal > 0 ? (vConFalla / vTotal) * 100 : (cd.fallas_criticas || 0);
-           const muertos = vTotal > 0 ? vMuertos : (cd.kpi_muertos || 0);
-
-           // Bar data per month
-           const volBarData = MESES_ORDEN.map(m => ({
-             name: m.slice(0, 3),
-             volumen_mantenimiento: vehicleRecords.filter(r => r.mes === m && r.tipo_mantenimiento === 'Preventivo').length
-           }));
-
-           // Siniestros por unidad from AV metrics
-           const sinByMovil = {};
-           asistenciaMetrics.forEach(m => {
-             const d = m.data || {};
-             const movil = d.av_desempeno?.movil || d.movil;
-             const acc = Number(d.av_desempeno?.accidentes_movil || d.accidentes_movil || 0);
-             if (movil) sinByMovil[movil] = (sinByMovil[movil] || 0) + acc;
-           });
-           const siniestrosData = Object.entries(sinByMovil).map(([movil, siniestros]) => ({ movil, siniestros })).sort((a,b) => b.siniestros - a.siniestros).slice(0,5);
-
-           // AV totals
-           const totalAccidentes = asistenciaMetrics.reduce((a, m) => a + Number(m.data?.av_desempeno?.accidentes_movil || m.data?.accidentes_movil || 0), 0) || cd.kpi_accidentes || 0;
-           const totalKm = asistenciaMetrics.reduce((a, m) => a + Number(m.data?.av_desempeno?.km_movil || m.data?.km_movil || 0), 0) || cd.kpi_km || 0;
-
-           return (
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Top KPIs */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '20px' }}>
-                 <div style={{ ...cardBg, textAlign: 'center' }}>
-                    {renderHeader('Cantidad de Accidentes')}
-                    <div style={{ padding: '20px' }}>
-                       <span style={{ fontSize: '48px', fontWeight: 'bold', color: '#ef4444' }}>{totalAccidentes}</span>
-                       <p style={{ margin: 0, fontWeight: 'bold' }}>Moviles AV</p>
-                    </div>
-                 </div>
-                 <div style={{ ...cardBg, textAlign: 'center' }}>
-                    {renderHeader('Kilometros recorridos')}
-                    <div style={{ padding: '20px' }}>
-                       <span style={{ fontSize: '48px', fontWeight: 'bold', color: '#b45309' }}>{totalKm.toLocaleString()}</span>
-                       <p style={{ margin: 0, fontWeight: 'bold' }}>Moviles AV</p>
-                    </div>
-                 </div>
-                 <div style={{ ...cardBg, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <p style={{ fontSize: '20px', fontWeight: 'bold', margin: '10px 0', color: '#475569' }}>ESTADÍSTICO FINAL: Muertos y Heridos Graves</p>
-                    <span style={{ fontSize: '72px', fontWeight: 'bold', color: muertos > 0 ? '#ef4444' : '#22c55e', lineHeight: 1 }}>{muertos}</span>
-                    {vTotal > 0 && <p style={{ fontSize: '11px', color: '#94a3b8', margin: '4px 0 8px' }}>Datos de {vTotal} registros cargados en flota</p>}
-                 </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '20px', backgroundColor: 'rgba(255,255,255,0.5)', padding: '20px', borderRadius: '8px' }}>
-                 <GaugeChartDecimal value={cd.tasa_siniestralidad || 0.09} label="EXPOSICIÓN: Tasa de Siniestralidad" color="#3b82f6" max={2.00} />
-                 <GaugeChartDecimal value={cd.riesgo_operativo || 0.1} label="EXPOSICIÓN: Riesgo Operativo en Asistencias" color="#3b82f6" max={2.0} />
-                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <p style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '10px' }}>EXPOSICIÓN: Siniestros por Unidad</p>
-                    <ResponsiveContainer width="100%" height={150}>
-                       <BarChart layout="vertical" data={siniestrosData.length > 0 ? siniestrosData : (cd.siniestros_unidad || [])} margin={{top:0, right:30, left:0, bottom:0}}>
-                         <XAxis type="number" hide />
-                         <YAxis dataKey="movil" type="category" tick={{fontSize: 12, fontWeight: 'bold'}} width={60} axisLine={false} tickLine={false} />
-                         <Bar dataKey="siniestros" fill="#3b82f6" barSize={15} label={{ position: 'right', fill: '#0f2d6e', fontWeight: 'bold' }} />
-                       </BarChart>
-                    </ResponsiveContainer>
-                 </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '20px', backgroundColor: 'rgba(255,255,255,0.5)', padding: '20px', borderRadius: '8px' }}>
-                 <div style={{ height: '260px' }}>
-                   <GaugeChart value={pctConformidad} label="INTERMEDIO: % Conformidad Legal y Equipamiento" color="#3b82f6" />
-                 </div>
-                 <div style={{ height: '260px' }}>
-                   <GaugeChart value={pctFallas} label="INTERMEDIO: % Tasa de Fallas en Sistemas Críticos" color="#3b82f6" />
-                 </div>
-                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <p style={{ fontWeight: 'bold', textDecoration: 'underline', marginBottom: '10px' }}>INTERMEDIO: Volumen de Mantenimiento Preventivo</p>
-                    <ResponsiveContainer width="100%" height={150}>
-                       <BarChart data={volBarData.filter(d => d.volumen_mantenimiento > 0)} margin={{top:20, right:0, left:0, bottom:0}}>
-                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                         <XAxis dataKey="name" tick={{fontSize: 12, fontWeight: 'bold'}} axisLine={false} tickLine={false} />
-                         <YAxis hide />
-                         <Bar dataKey="volumen_mantenimiento" fill="#3b82f6" barSize={40} label={{ position: 'top', fill: '#0f2d6e', fontWeight: 'bold' }} />
-                       </BarChart>
-                    </ResponsiveContainer>
-                    {vTotal === 0 && <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', textAlign: 'center' }}>Cargá registros en "Factores Desempeño AV" para ver datos reales</p>}
-                 </div>
-              </div>
-           </div>
-           );
-        })()}
-
-        {asistenciaView === 'equipamiento' && cd && (
+        {asistenciaView === 'sv' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '16px' }}>
-                {/* KPIs Izquierda */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                   <div style={{ ...cardBg, textAlign: 'center' }}>
-                      {renderHeader('Equipamiento Ambulancia')}
-                      <div style={{ padding: '20px' }}>
-                         <span style={{ fontSize: '48px', fontWeight: 'bold', color: '#ef4444' }}>{Number(cd.equip_ambulancia || 0).toFixed(2).replace('.', ',')}</span>
-                         <p style={{ margin: 0, fontWeight: 'bold' }}>Objetivo ≤ 0,25</p>
-                      </div>
-                   </div>
-                   <div style={{ ...cardBg, textAlign: 'center' }}>
-                      {renderHeader('Conformidad Auxilio Mecánico')}
-                      <div style={{ padding: '20px' }}>
-                         <span style={{ fontSize: '48px', fontWeight: 'bold', color: '#b45309' }}>{Number(cd.conformidad_aux_mec || 100).toFixed(1).replace('.', ',')} %</span>
-                         <p style={{ margin: 0, fontWeight: 'bold' }}>Objetivo ≥ 95%</p>
-                      </div>
-                   </div>
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <GaugeChart value={ind15Gral || 0} label="Veloc. respuesta Móviles AV (eventos ≤ 15 min)" color="#b91c1c" target="85" />
+              <GaugeChart value={ind23Gral || 0} label="Veloc. respuesta Móviles AV (eventos ≤ 23 min) troncal" color="#eab308" target="85" />
+              <GaugeChart value={indAuxGral || 0} label="Veloc. respuesta Auxilio Mecánico (≤ 55 min)" color="#7f1d1d" target="85" />
+              <GaugeChart value={indSanGral || 0} label="Veloc. respuesta Sanitaria (≤ 15 min + tolerancia)" color="#1e3a8a" target="100" />
+            </div>
 
-                {/* Graficos de Linea */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                   <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                      {renderHeader('Cumplimiento del Equipamiento de las Ambulancias')}
-                      <div style={{ flex: 1, padding: '20px', position: 'relative' }}>
-                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={[{name: '1 Trimestre', val: cd.equip_amb_trimestre || 0}]}>
-                               <CartesianGrid strokeDasharray="3 3" />
-                               <XAxis dataKey="name" />
-                               <YAxis domain={[0, 0.2]} />
-                               <ReferenceLine y={0.25} stroke="red" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Objetivo Cumplimiento AMB <= 0,25', fill: 'red' }} />
-                               <Line type="monotone" dataKey="val" stroke="#3b82f6" strokeWidth={3} dot={{r: 6}} label={{ position: 'top', fill: '#3b82f6', fontWeight: 'bold', formatter: v => Number(v).toFixed(2).replace('.', ',') }} />
-                            </LineChart>
-                         </ResponsiveContainer>
-                      </div>
-                   </div>
-                   <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                      {renderHeader('Cumplimiento del Equipamiento Ambulancias por Base')}
-                      <div style={{ flex: 1, padding: '20px', position: 'relative' }}>
-                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={cd.equip_amb_base || []}>
-                               <CartesianGrid strokeDasharray="3 3" />
-                               <XAxis dataKey="base" />
-                               <YAxis domain={[0, 0.2]} />
-                               <ReferenceLine y={0.25} stroke="red" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Objetivo Cumplimiento AMB <= 0,25', fill: 'red' }} />
-                               <Line type="monotone" dataKey="valor" stroke="#3b82f6" strokeWidth={3} dot={{r: 6}} label={{ position: 'top', fill: '#3b82f6', fontWeight: 'bold', formatter: v => Number(v).toFixed(2).replace('.', ',') }} />
-                            </LineChart>
-                         </ResponsiveContainer>
-                      </div>
-                   </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
+                {renderHeader('Velocidad de respuesta Móviles AV — mensual')}
+                <div style={{ flex: 1, padding: '20px', minHeight: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={g1Monthly} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 100]} tickFormatter={v => v + '%'} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={v => v == null ? 'Sin datos' : v.toFixed(1) + '%'} />
+                      <Legend verticalAlign="top" />
+                      <ReferenceLine y={85} stroke="#0f2d6e" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Meta 85%', fill: '#0f2d6e', fontWeight: 'bold' }} />
+                      <Bar dataKey="ind15" name="≤ 15 min (autopista)" fill="#f87171" barSize={20} />
+                      <Bar dataKey="ind23" name="≤ 23 min (troncal)" fill="#fbbf24" barSize={20} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-             </div>
+              </div>
 
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', height: '300px' }}>
-                <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                   {renderHeader('Conformidad Auxilio Mecánico')}
-                   <div style={{ flex: 1, padding: '20px' }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                         <BarChart data={chartData.slice(0, 3)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                            <YAxis domain={[0, 100]} axisLine={false} tickLine={false} />
-                            <Legend verticalAlign="top" iconType="circle" />
-                            <Bar dataKey="conf_mec_disconformidades" name="Cantidad de Disconformidades" fill="#ef4444" barSize={40} />
-                            <Bar dataKey="conf_mec_conformidades" name="Cantidad de Conformidades" fill="#3b82f6" barSize={40} label={{ position: 'insideTop', fill: 'white', fontWeight: 'bold' }} />
-                         </BarChart>
-                      </ResponsiveContainer>
-                   </div>
+              <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
+                {renderHeader('Velocidad de respuesta Aux. Mecánico y Sanitaria — mensual')}
+                <div style={{ flex: 1, padding: '20px', minHeight: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={g1Monthly} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 110]} tickFormatter={v => v + '%'} axisLine={false} tickLine={false} />
+                      <Tooltip formatter={v => v == null ? 'Sin datos' : v.toFixed(1) + '%'} />
+                      <Legend verticalAlign="top" />
+                      <ReferenceLine y={85} stroke="#0f2d6e" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Meta 85%', fill: '#0f2d6e', fontWeight: 'bold' }} />
+                      <ReferenceLine y={100} stroke="#dc2626" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Meta 100%', fill: '#dc2626', fontWeight: 'bold' }} />
+                      <Bar dataKey="indAux" name="Aux. Mecánico ≤ 55 min" fill="#f59e0b" barSize={20} />
+                      <Bar dataKey="indSan" name="Sanitaria ≤ 15 min" fill="#38bdf8" barSize={20} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
-
-                <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
-                   {renderHeader('Indicador Conformidad Auxilio Mecánico')}
-                   <div style={{ flex: 1, padding: '20px' }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                         <ComposedChart data={chartData.slice(0, 3)} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                            <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tickFormatter={v => v + '%'} />
-                            <Legend verticalAlign="top" iconType="circle" />
-                            <Bar dataKey="indicador_conf_mec" name="Indicador" fill="#4ade80" barSize={80} label={{ position: 'top', fill: '#64748b', fontWeight: 'bold', formatter: v => v + ' %' }} />
-                            <Line type="monotone" dataKey={(d) => 100} stroke="#1e3a8a" strokeWidth={3} dot={{ r: 4 }} name="Promedio de Objetivo Conformidad AM" label={{ position: 'bottom', fill: '#1e3a8a', fontWeight: 'bold', formatter: v => '1' }} />
-                         </ComposedChart>
-                      </ResponsiveContainer>
-                   </div>
-                </div>
-             </div>
+              </div>
+            </div>
           </div>
         )}
 
+        {asistenciaView === 'desempeno' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+              <div style={{ ...cardBg, textAlign: 'center' }}>
+                {renderHeader('Cantidad de Accidentes')}
+                <div style={{ padding: '20px' }}>
+                  <span style={{ fontSize: '48px', fontWeight: 'bold', color: '#ef4444' }}>{totalAccidentes.toLocaleString()}</span>
+                  <p style={{ margin: 0, fontWeight: 'bold' }}>Asistencias con accidente</p>
+                </div>
+              </div>
+              <div style={{ ...cardBg, textAlign: 'center' }}>
+                {renderHeader('Kilómetros recorridos')}
+                <div style={{ padding: '20px' }}>
+                  <span style={{ fontSize: '48px', fontWeight: 'bold', color: '#b45309' }}>{totalKm.toLocaleString()}</span>
+                  <p style={{ margin: 0, fontWeight: 'bold' }}>Móviles AV</p>
+                </div>
+              </div>
+              <div style={{ ...cardBg, textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                {renderHeader('Exposición de Accidentes Viales')}
+                <div style={{ padding: '20px' }}>
+                  <span style={{ fontSize: '48px', fontWeight: 'bold', color: exposicion != null && exposicion < 1 ? '#22c55e' : '#ef4444' }}>{exposicion != null ? exposicion.toFixed(2) + '%' : '-'}</span>
+                  <p style={{ margin: 0, fontWeight: 'bold' }}>Meta &lt; 1%</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
+              <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
+                {renderHeader('Siniestros por Unidad')}
+                <div style={{ flex: 1, padding: '20px', minHeight: '260px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart layout="vertical" data={siniestrosData} margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+                      <XAxis type="number" hide allowDecimals={false} />
+                      <YAxis dataKey="movil" type="category" tick={{ fontSize: 12, fontWeight: 'bold' }} width={70} axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="siniestros" fill="#3b82f6" barSize={18} label={{ position: 'right', fill: '#0f2d6e', fontWeight: 'bold' }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
+                {renderHeader('Factor de Desempeño por Móvil (accidentes / km) — Meta ≤ 1')}
+                <div style={{ flex: 1, padding: '20px', minHeight: '260px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={factorPorMovil} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="movil" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip formatter={v => v == null ? '-' : Number(v).toFixed(4)} />
+                      <ReferenceLine y={1} stroke="#dc2626" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Meta ≤ 1', fill: '#dc2626', fontWeight: 'bold' }} />
+                      <Bar dataKey="factor" name="Factor desempeño" fill="#f97316" barSize={30} label={{ position: 'top', fill: '#0f2d6e', fontWeight: 'bold', formatter: v => v == null ? '-' : Number(v).toFixed(2) }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {asistenciaView === 'equipamiento' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ ...cardBg, textAlign: 'center' }}>
+                {renderHeader('Equipamiento Ambulancia (promedio)')}
+                <div style={{ padding: '20px' }}>
+                  <span style={{ fontSize: '48px', fontWeight: 'bold', color: indEquipGral != null && indEquipGral <= 0.25 ? '#22c55e' : '#ef4444' }}>{indEquipGral != null ? indEquipGral.toFixed(2).replace('.', ',') : '-'}</span>
+                  <p style={{ margin: 0, fontWeight: 'bold' }}>Objetivo ≤ 0,25</p>
+                </div>
+              </div>
+              <div style={{ ...cardBg, textAlign: 'center' }}>
+                {renderHeader('Conformidad Auxilio Mecánico')}
+                <div style={{ padding: '20px' }}>
+                  <span style={{ fontSize: '48px', fontWeight: 'bold', color: indConfMec != null && indConfMec >= 95 ? '#22c55e' : '#b45309' }}>{indConfMec != null ? indConfMec.toFixed(1).replace('.', ',') + ' %' : '-'}</span>
+                  <p style={{ margin: 0, fontWeight: 'bold' }}>Objetivo ≥ 95%</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
+                {renderHeader('Equipamiento Ambulancia por Base (Objetivo ≤ 0,25)')}
+                <div style={{ flex: 1, padding: '20px', minHeight: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={equipPorBase} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="base" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <ReferenceLine y={0.25} stroke="#dc2626" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Objetivo ≤ 0,25', fill: '#dc2626', fontWeight: 'bold' }} />
+                      <Bar dataKey="valor" name="Indicador" fill="#3b82f6" barSize={40} label={{ position: 'top', fill: '#0f2d6e', fontWeight: 'bold', formatter: v => Number(v).toFixed(2).replace('.', ',') }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div style={{ ...cardBg, display: 'flex', flexDirection: 'column' }}>
+                {renderHeader('Conformidad Auxilio Mecánico (conformes vs disconformes)')}
+                <div style={{ flex: 1, padding: '20px', minHeight: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[{ name: 'Aux. Mecánico', conformes: conformidades, disconformes: disconformidades }]} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip />
+                      <Legend verticalAlign="top" />
+                      <Bar dataKey="conformes" name="Conformidades" fill="#3b82f6" barSize={40} label={{ position: 'top', fill: '#0f2d6e', fontWeight: 'bold' }} />
+                      <Bar dataKey="disconformes" name="Disconformidades" fill="#ef4444" barSize={40} label={{ position: 'top', fill: '#7f1d1d', fontWeight: 'bold' }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };

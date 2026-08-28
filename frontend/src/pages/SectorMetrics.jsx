@@ -4,6 +4,7 @@ import { Save, CheckCircle } from 'lucide-react';
 import { obtenerMetricaMensual, guardarMetricaMensual } from '../lib/metricsApi';
 import ComercialMetricsForms from '../components/ComercialMetricsForms';
 import AsistenciaMetricsForms from '../components/AsistenciaMetricsForms';
+import OperacionesMetricsForms from '../components/OperacionesMetricsForms';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -469,6 +470,15 @@ const SectorMetrics = () => {
       <div>
         {sgiSelector}
         <AsistenciaMetricsForms />
+      </div>
+    );
+  }
+
+  if (activeForm === 'operaciones_spp') {
+    return (
+      <div>
+        {sgiSelector}
+        <OperacionesMetricsForms />
       </div>
     );
   }
