@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Save, CheckCircle } from 'lucide-react';
 import { obtenerMetricaMensual, guardarMetricaMensual } from '../lib/metricsApi';
 import ComercialMetricsForms from '../components/ComercialMetricsForms';
+import AsistenciaMetricsForms from '../components/AsistenciaMetricsForms';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -363,14 +364,11 @@ const SectorMetrics = () => {
         return 'ccm';
       case 'CCM Gestión Tránsito':
         return 'ccm_gestion';
-      case 'Asistencia Vial': 
-        return 'av';
+      case 'Asistencia Vial':
       case 'Asistencia Vial Gestión':
-        return 'av_gestion';
       case 'Asistencia Vial 1° Aux':
-        return 'av_aux1';
       case 'Asistencia Vial Aux Mecánico':
-        return 'av_aux_mec';
+        return 'asistencia_vial';
       case 'Gerencia de Mantenimiento-Taller Mecanico': 
       case 'Mantenimiento':
         return 'mantenimiento';
@@ -446,10 +444,7 @@ const SectorMetrics = () => {
         <option value="operaciones_spp">Gerencia de Operaciones (SPP)</option>
         <option value="ccm">Centro de Control y Monitoreo (Contingencias)</option>
         <option value="ccm_gestion">Centro de Control y Monitoreo (Gestión Tránsito)</option>
-        <option value="av">Asistencia Vial (Factores)</option>
-        <option value="av_gestion">Asistencia Vial (Gestión AV1)</option>
-        <option value="av_aux1">Asistencia Vial (1° Auxilio)</option>
-        <option value="av_aux_mec">Asistencia Vial (Auxilio Mecánico)</option>
+        <option value="asistencia_vial">Asistencia Vial</option>
         <option value="mantenimiento">Ger. Mantenimiento-Taller Mecánico</option>
         <option value="rrhh">Gerencia de Recursos Humanos</option>
         <option value="compras">Gerencia de Compras</option>
@@ -465,6 +460,15 @@ const SectorMetrics = () => {
       <div>
         {sgiSelector}
         <ComercialMetricsForms />
+      </div>
+    );
+  }
+
+  if (activeForm === 'asistencia_vial') {
+    return (
+      <div>
+        {sgiSelector}
+        <AsistenciaMetricsForms />
       </div>
     );
   }
