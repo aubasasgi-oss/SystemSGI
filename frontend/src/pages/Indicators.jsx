@@ -1,35 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Target, Search, Edit2, Lock, Plus, History, CheckCircle, Clock } from 'lucide-react';
-import { rawData } from '../data/sgiData';
-
-// Generate base objects
-const baseIndicators = rawData.map((r, i) => ({
-  id: i + 1,
-  anio: r[0],
-  documento: r[1],
-  obj_num: r[2],
-  norma: r[3],
-  proceso: r[4],
-  indicador: r[5],
-  meta: r[6],
-  tipo: r[7],
-  frecuencia: r[8],
-  algoritmo: r[9],
-  responsable: r[10],
-  estrategia: r[11],
-  vigencia: r[12]
-}));
+import { listarIndicadores, actualizarMetaIndicador, listarHistorialIndicadores, agregarHistorialIndicador } from '../lib/indicadoresApi';
 
 const Indicators = () => {
   const { checkPermission, userRole, userSector } = useAuth();
-  
+
   // App state
-  const [indicators, setIndicators] = useState(baseIndicators);
-  const [historyLog, setHistoryLog] = useState([
-    { id: 1, date: '2026-01-10', user: 'SGI Admin', indId: 1, text: 'Revisión anual confirmada. Meta ajustada a ≥ 86%.' }
-  ]);
-  
+  const [indicators, setIndicators] = useState([]);
+  const [loadingIndicators, setLoadingIndicators] = useState(true);
+  const [historyLog, setHistoryLog] = useState([]);
+
+  const cargarIndicadores = () => {
+    setLoadingIndicators(true);
+    listarIndicadores()
+      .then(setIndicators)
+      .catch(err => { console.error(err); setIndicators([]); })
+      .finally(() => setLoadingIndicators(false));
+  };
+
+  const cargarHistorial = () => {
+    listarHistorialIndicadores()
+      .then(setHistoryLog)
+      .catch(err => { console.error(err); setHistoryLog([]); });
+  };
+
+  useEffect(() => {
+    cargarIndicadores();
+    cargarHistorial();
+  }, []);
+
   // Modals state
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -50,7 +50,7 @@ const Indicators = () => {
   const procesos = useMemo(() => [...new Set(indicators.map(i => i.proceso))].sort(), [indicators]);
   const sectores = useMemo(() => [...new Set(indicators.map(i => i.responsable))].sort(), [indicators]);
 
-  const reviewedIds = useMemo(() => [...new Set(historyLog.map(h => h.indId))], [historyLog]);
+  const reviewedIds = useMemo(() => [...new Set(historyLog.map(h => h.indicador_id))], [historyLog]);
 
   const filteredIndicators = indicators.filter(ind => {
     if (filterAnio && ind.anio.toString() !== filterAnio) return false;
@@ -83,22 +83,24 @@ const Indicators = () => {
     setReviewModalOpen(true);
   };
 
+  const [savingReview, setSavingReview] = useState(false);
+
   const saveReview = () => {
     if (!activeInd) return;
-    
-    const updated = indicators.map(i => i.id === activeInd.id ? { ...i, meta: newMeta } : i);
-    setIndicators(updated);
-    
-    const logEntry = {
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      user: userRole === 'SGI' ? 'SGI Admin' : userSector,
-      indId: activeInd.id,
-      text: `Meta revisada. Valor: ${newMeta}. ${reviewComment ? 'Nota: ' + reviewComment : ''}`
-    };
-    
-    setHistoryLog([logEntry, ...historyLog]);
-    setReviewModalOpen(false);
+    setSavingReview(true);
+
+    const usuario = userRole === 'SGI' ? 'SGI Admin' : userSector;
+    const texto = `Meta revisada. Valor: ${newMeta}. ${reviewComment ? 'Nota: ' + reviewComment : ''}`;
+
+    actualizarMetaIndicador(activeInd.id, newMeta)
+      .then(() => agregarHistorialIndicador(activeInd.id, usuario, texto))
+      .then(() => {
+        cargarIndicadores();
+        cargarHistorial();
+        setReviewModalOpen(false);
+      })
+      .catch(err => alert('Error al guardar la revisión: ' + err.message))
+      .finally(() => setSavingReview(false));
   };
 
   return (
@@ -191,6 +193,12 @@ const Indicators = () => {
               </tr>
             </thead>
             <tbody>
+              {loadingIndicators && (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>Cargando indicadores...</td></tr>
+              )}
+              {!loadingIndicators && filteredIndicators.length === 0 && (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>No se encontraron indicadores para los filtros seleccionados.</td></tr>
+              )}
               {filteredIndicators.map(ind => {
                 const canEdit = checkPermission(ind.responsable);
                 const isReviewed = reviewedIds.includes(ind.id);
@@ -257,8 +265,8 @@ const Indicators = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button className="btn btn-secondary" onClick={() => setReviewModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={saveReview}>Guardar Revisión</button>
+              <button className="btn btn-secondary" onClick={() => setReviewModalOpen(false)} disabled={savingReview}>Cancelar</button>
+              <button className="btn btn-primary" onClick={saveReview} disabled={savingReview}>{savingReview ? 'Guardando...' : 'Guardar Revisión'}</button>
             </div>
           </div>
         </div>
@@ -285,13 +293,13 @@ const Indicators = () => {
                   </thead>
                   <tbody>
                     {historyLog.map(log => {
-                      const indRef = baseIndicators.find(i => i.id === log.indId);
+                      const indRef = indicators.find(i => i.id === log.indicador_id);
                       return (
                         <tr key={log.id}>
-                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{log.date}</td>
-                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{log.user}</td>
-                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{indRef?.indicador || `ID: ${log.indId}`}</td>
-                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{log.text}</td>
+                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{log.fecha}</td>
+                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{log.usuario}</td>
+                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{indRef?.indicador || `ID: ${log.indicador_id}`}</td>
+                          <td style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}>{log.texto}</td>
                         </tr>
                       );
                     })}

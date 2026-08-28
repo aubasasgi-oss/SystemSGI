@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker } from 'tesseract.js';
-import { rawData } from '../data/sgiData';
+import { listarIndicadores } from '../lib/indicadoresApi';
 import { listarRiesgos } from '../lib/risksApi';
 import { initialContext } from '../pages/Context';
 import { mockReviews } from '../pages/ManagementReview';
@@ -184,7 +184,10 @@ const ChatbotWidget = () => {
       if (selectedDocId === 'global') {
         systemPrompt += " Actualmente tienes acceso a la base de datos GLOBAL del Sistema de Gestión Integrado. Esto incluye Indicadores, Riesgos, Contexto Organizacional, Revisiones por la Dirección y EL CONTENIDO COMPLETO DE TODOS LOS DOCUMENTOS VIGENTES. Usa toda esta información para cruzar datos y responder con máximo detalle.";
         
-        const indContext = "INDICADORES:\n" + rawData.map(r => `- Proceso: ${r[4]}, Indicador: ${r[5]}, Meta: ${r[6]}, Responsable: ${r[10]}`).join('\n');
+        const indicadoresReales = await listarIndicadores().catch(() => []);
+        const indContext = "INDICADORES:\n" + (indicadoresReales.length
+          ? indicadoresReales.map(r => `- Proceso: ${r.proceso}, Indicador: ${r.indicador}, Meta: ${r.meta}, Responsable: ${r.responsable}`).join('\n')
+          : '(sin indicadores cargados)');
         const riesgosReales = await listarRiesgos().catch(() => []);
         const riskContext = "RIESGOS:\n" + (riesgosReales.length
           ? riesgosReales.map(r => `- Riesgo: ${r.riesgo}, Consecuencias: ${r.consecuencias}, Proceso: ${r.proceso}, Acción: ${r.accionDecision}`).join('\n')
