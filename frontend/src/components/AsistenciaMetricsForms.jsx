@@ -9,34 +9,45 @@ const pct = (num, den) => (den ? ((Number(num) || 0) / Number(den) * 100) : null
 const fmtPct = (v) => v === null || v === undefined || isNaN(v) ? '-' : v.toFixed(2).replace('.', ',') + '%';
 const fmtNum = (v) => v === null || v === undefined || v === '' || isNaN(v) ? '-' : Number(v).toFixed(2).replace('.', ',');
 
+// Las metas (Objetivo) NO son un dato que carga el sector: son fijas, iguales
+// a las que ya tiene definidas el KPI en el módulo de Indicadores. Acá solo
+// se muestran para comparar contra lo cargado, no se piden en el formulario.
+const cumpleBadge = (texto, ok) => (
+  <span style={{ color: ok === null ? 'inherit' : (ok ? '#16a34a' : '#dc2626'), fontWeight: ok === null ? 400 : 700 }}>
+    {texto}{ok === null ? '' : (ok ? ' ✓' : ' ✗')}
+  </span>
+);
+
 const TIPOS = {
   gestion_av1: {
     label: 'Gestión AV1',
     campos: [
       { id: 'eventos_15min_ok', label: 'Cant. eventos ≤ 15 min (Toda la Autopista)', type: 'number' },
       { id: 'eventos_15min_total', label: 'Cant. eventos ante contingencia', type: 'number' },
-      { id: 'objetivo_15min', label: 'Objetivo ≥', type: 'number' },
       { id: 'eventos_23min_ok', label: 'Cant. eventos ≤ 23 min (Troncal PR 42+000-52+000 Desc.)', type: 'number' },
       { id: 'eventos_23min_total', label: 'Cant. eventos ante contingencia (troncal)', type: 'number' },
-      { id: 'objetivo_23min', label: 'Objetivo1 ≥', type: 'number' },
       { id: 'aux_mec_ok', label: 'Cant. Resp. Auxilio Mecánico ≤ 55 min', type: 'number' },
       { id: 'aux_mec_total', label: 'Cant. de Respuesta Auxilio Mecánico', type: 'number' },
-      { id: 'objetivo_aux_mec', label: 'Objetivo2 ≥', type: 'number' },
       { id: 'sanit_ok', label: 'Cant. Resp. Sanitaria (≤15 min _ Tolerancia +25 min)', type: 'number' },
       { id: 'sanit_total', label: 'Cant. de Respuesta Sanitaria ante Contingencia', type: 'number' },
-      { id: 'objetivo_sanit', label: 'Objetivo sanitario =', type: 'number' },
     ],
-    columnas: (d) => [
-      fmtNum(d.eventos_15min_ok), fmtNum(d.eventos_15min_total), fmtPct(pct(d.eventos_15min_ok, d.eventos_15min_total)), fmtNum(d.objetivo_15min),
-      fmtNum(d.eventos_23min_ok), fmtNum(d.eventos_23min_total), fmtPct(pct(d.eventos_23min_ok, d.eventos_23min_total)), fmtNum(d.objetivo_23min),
-      fmtNum(d.aux_mec_ok), fmtNum(d.aux_mec_total), fmtPct(pct(d.aux_mec_ok, d.aux_mec_total)), fmtNum(d.objetivo_aux_mec),
-      fmtNum(d.sanit_ok), fmtNum(d.sanit_total), fmtPct(pct(d.sanit_ok, d.sanit_total)), fmtNum(d.objetivo_sanit),
-    ],
+    columnas: (d) => {
+      const i15 = pct(d.eventos_15min_ok, d.eventos_15min_total);
+      const i23 = pct(d.eventos_23min_ok, d.eventos_23min_total);
+      const iAux = pct(d.aux_mec_ok, d.aux_mec_total);
+      const iSan = pct(d.sanit_ok, d.sanit_total);
+      return [
+        fmtNum(d.eventos_15min_ok), fmtNum(d.eventos_15min_total), cumpleBadge(fmtPct(i15), i15 === null ? null : i15 >= 85), 'Meta ≥ 85%',
+        fmtNum(d.eventos_23min_ok), fmtNum(d.eventos_23min_total), cumpleBadge(fmtPct(i23), i23 === null ? null : i23 >= 85), 'Meta ≥ 85%',
+        fmtNum(d.aux_mec_ok), fmtNum(d.aux_mec_total), cumpleBadge(fmtPct(iAux), iAux === null ? null : iAux >= 85), 'Meta ≥ 85%',
+        fmtNum(d.sanit_ok), fmtNum(d.sanit_total), cumpleBadge(fmtPct(iSan), iSan === null ? null : iSan >= 100), 'Meta ≥ 100%',
+      ];
+    },
     headers: [
-      'Eventos ≤15min OK', 'Eventos ≤15min Total', 'Ind. ≤15min', 'Obj. ≥',
-      'Eventos ≤23min OK (Troncal)', 'Eventos ≤23min Total', 'Ind. ≤23min', 'Obj.1 ≥',
-      'Aux. Mecánico OK', 'Aux. Mecánico Total', 'Ind. Aux. Mecánico', 'Obj.2 ≥',
-      'Sanitaria OK', 'Sanitaria Total', 'Ind. Sanitaria', 'Obj. Sanitario =',
+      'Eventos ≤15min OK', 'Eventos ≤15min Total', 'Ind. ≤15min', 'Meta',
+      'Eventos ≤23min OK (Troncal)', 'Eventos ≤23min Total', 'Ind. ≤23min', 'Meta',
+      'Aux. Mecánico OK', 'Aux. Mecánico Total', 'Ind. Aux. Mecánico', 'Meta',
+      'Sanitaria OK', 'Sanitaria Total', 'Ind. Sanitaria', 'Meta',
     ],
   },
   factor_desempeno: {
@@ -45,23 +56,23 @@ const TIPOS = {
       { id: 'movil', label: 'Móvil', type: 'select', options: MOVILES },
       { id: 'accidentes_movil', label: 'Accidentes por móvil', type: 'number' },
       { id: 'km_recorridos', label: 'Km recorridos por móvil', type: 'number' },
-      { id: 'objetivo_factor', label: 'Objetivo Factor de Desempeño (ej: ≤ 1)', type: 'text' },
       { id: 'cant_accidentes', label: 'Cantidad de accidentes', type: 'number' },
       { id: 'cant_asistencias', label: 'Cantidad de asistencias', type: 'number' },
-      { id: 'objetivo_exposicion', label: 'Objetivo Exposición accidentes viales (ej: < 1%)', type: 'text' },
     ],
-    columnas: (d) => [
-      d.movil,
-      fmtNum(d.accidentes_movil), fmtNum(d.km_recorridos),
-      d.km_recorridos ? fmtNum((Number(d.accidentes_movil) || 0) / Number(d.km_recorridos)) : '-',
-      d.objetivo_factor || '-',
-      fmtNum(d.cant_accidentes), fmtNum(d.cant_asistencias),
-      fmtPct(pct(d.cant_accidentes, d.cant_asistencias)),
-      d.objetivo_exposicion || '-',
-    ],
+    columnas: (d) => {
+      const factor = d.km_recorridos ? (Number(d.accidentes_movil) || 0) / Number(d.km_recorridos) : null;
+      const exposicion = pct(d.cant_accidentes, d.cant_asistencias);
+      return [
+        d.movil,
+        fmtNum(d.accidentes_movil), fmtNum(d.km_recorridos),
+        cumpleBadge(factor === null ? '-' : fmtNum(factor), factor === null ? null : factor <= 1), 'Meta ≤ 1',
+        fmtNum(d.cant_accidentes), fmtNum(d.cant_asistencias),
+        cumpleBadge(fmtPct(exposicion), exposicion === null ? null : exposicion < 1), 'Meta < 1%',
+      ];
+    },
     headers: [
-      'Móvil', 'Accidentes', 'Km Recorridos', 'Ind. Factor Desempeño', 'Obj. Factor Desempeño',
-      'Cant. Accidentes', 'Cant. Asistencias', 'Ind. Exposición', 'Obj. Exposición',
+      'Móvil', 'Accidentes', 'Km Recorridos', 'Ind. Factor Desempeño', 'Meta',
+      'Cant. Accidentes', 'Cant. Asistencias', 'Ind. Exposición', 'Meta',
     ],
   },
   serv_1er_aux: {
@@ -69,27 +80,28 @@ const TIPOS = {
     campos: [
       { id: 'base', label: 'Base', type: 'select', options: SITIOS },
       { id: 'indicador_equipamiento', label: 'Indicador Equipamiento y Condiciones Grales. Ambulancia', type: 'number' },
-      { id: 'objetivo_equipamiento', label: 'Objetivo Equipamiento y Condiciones Grales. ≤', type: 'number' },
     ],
-    columnas: (d) => [d.base, fmtNum(d.indicador_equipamiento), fmtNum(d.objetivo_equipamiento)],
-    headers: ['Base', 'Indicador Equipamiento', 'Obj. Equipamiento ≤'],
+    columnas: (d) => {
+      const v = d.indicador_equipamiento !== null && d.indicador_equipamiento !== undefined && d.indicador_equipamiento !== '' ? Number(d.indicador_equipamiento) : null;
+      return [d.base, cumpleBadge(v === null ? '-' : fmtNum(v), v === null ? null : v <= 0.25), 'Meta ≤ 0,25'];
+    },
+    headers: ['Base', 'Indicador Equipamiento', 'Meta'],
   },
   serv_aux_mecanico: {
     label: 'Servicio Auxilio Mecánico',
     campos: [
       { id: 'conformidades', label: 'Cantidad de Conformidades', type: 'number' },
       { id: 'disconformidades', label: 'Cantidad de Disconformidades', type: 'number' },
-      { id: 'objetivo_conformidad', label: 'Objetivo Conformidad AM ≥', type: 'number' },
     ],
     columnas: (d) => {
       const total = (Number(d.conformidades) || 0) + (Number(d.disconformidades) || 0);
+      const ind = total > 0 ? (Number(d.conformidades) / total) * 100 : null;
       return [
         fmtNum(d.conformidades), fmtNum(d.disconformidades),
-        total > 0 ? fmtPct((Number(d.conformidades) / total) * 100) : '-',
-        fmtNum(d.objetivo_conformidad),
+        cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 95), 'Meta ≥ 95%',
       ];
     },
-    headers: ['Conformidades', 'Disconformidades', 'Ind. Conformidad AM', 'Obj. Conformidad AM ≥'],
+    headers: ['Conformidades', 'Disconformidades', 'Ind. Conformidad AM', 'Meta'],
   },
 };
 
