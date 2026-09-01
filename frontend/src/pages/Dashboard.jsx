@@ -54,6 +54,7 @@ const Dashboard = () => {
   const [asistenciaAnio, setAsistenciaAnio] = useState(new Date().getFullYear());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [ccmMetrics, setCcmMetrics] = useState([]);
+  const [ccmContingMetrics, setCcmContingMetrics] = useState([]);
   const [ccmAnio, setCcmAnio] = useState(new Date().getFullYear());
   const [ccmTrimestre, setCcmTrimestre] = useState(null); // null = todos
   const [mantenimientoMetrics, setMantenimientoMetrics] = useState([]);
@@ -120,15 +121,19 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'ccm') {
+      const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
       obtenerMetricaMensual('ccm_gestion', ccmAnio)
         .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
-          });
+          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => (mo[a.month]||0) - (mo[b.month]||0));
           setCcmMetrics(sorted);
         })
         .catch(() => setCcmMetrics([]));
+      obtenerMetricaMensual('ccm', ccmAnio)
+        .then(d => {
+          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => (mo[a.month]||0) - (mo[b.month]||0));
+          setCcmContingMetrics(sorted);
+        })
+        .catch(() => setCcmContingMetrics([]));
     }
   }, [activeGerencia, ccmAnio]);
 
@@ -853,6 +858,18 @@ const Dashboard = () => {
     const TRIM_MESES = { 1: ['Enero','Febrero','Marzo'], 2: ['Abril','Mayo','Junio'], 3: ['Julio','Agosto','Septiembre'], 4: ['Octubre','Noviembre','Diciembre'] };
 
     const filtered = ccmTrimestre ? ccmMetrics.filter(m => TRIM_MESES[ccmTrimestre]?.includes(m.month)) : ccmMetrics;
+    const filteredConting = ccmTrimestre ? ccmContingMetrics.filter(m => TRIM_MESES[ccmTrimestre]?.includes(m.month)) : ccmContingMetrics;
+
+    const totLiberOk = filteredConting.reduce((a, m) => a + Number(m.data?.ccm_conting?.liberacion_ok || 0), 0);
+    const totLiberEventos = filteredConting.reduce((a, m) => a + Number(m.data?.ccm_conting?.total_eventos || 0), 0);
+    const pctLiber = totLiberEventos > 0 ? (totLiberOk / totLiberEventos) * 100 : 0;
+
+    const monthlyLiber = MESES.map(m => {
+      const rec = ccmContingMetrics.find(r => r.month === m);
+      const ok = Number(rec?.data?.ccm_conting?.liberacion_ok || 0);
+      const tot = Number(rec?.data?.ccm_conting?.total_eventos || 0);
+      return { name: m.slice(0,3), pct: tot > 0 ? Math.round((ok/tot)*100) : null };
+    });
 
     const totDet = filtered.reduce((a, m) => a + Number(m.data?.ccm_g1?.detectadas || 0), 0);
     const totRep = filtered.reduce((a, m) => a + Number(m.data?.ccm_g1?.reportadas || 0), 0);
@@ -954,6 +971,26 @@ const Dashboard = () => {
               {t === null ? 'Todos' : t}
             </button>
           ))}
+        </div>
+
+        {/* Fila 0: Contingencias (liberación de calzada) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px', marginBottom: '12px' }}>
+          <GaugeCCM value={pctLiber} label="Liberación de Calzada por Obstáculos (≤ 30 min)" objetivo={85} color="#16a34a" />
+          <div style={card}>
+            {hdr('Liberación de Calzada por Obstáculos — mensual')}
+            <div style={{ height: '190px', padding: '4px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={monthlyLiber} margin={{ top: 22, right: 28, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} hide />
+                  <Tooltip formatter={v => v != null ? v + '%' : 'Sin datos'} />
+                  <ReferenceLine y={85} stroke="#16a34a" strokeDasharray="5 3" label={{ position: 'insideTopRight', value: '≥ 85%', fill: '#16a34a', fontSize: 10 }} />
+                  <Bar dataKey="pct" fill="#4ade80" barSize={16} radius={[3,3,0,0]} label={{ position: 'top', fontSize: 10, fontWeight: 700, fill: '#14532d', formatter: v => v != null ? v + '%' : '' }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
 
         {/* Fila 1: Gauges + Gráfico mensual */}
