@@ -392,6 +392,14 @@ const Dashboard = () => {
           <h2 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: '800', letterSpacing: '4px' }}>INDICADORES DE GESTIÓN</h2>
         </div>
 
+        <button
+          onClick={toggleFullscreen}
+          style={{ position: 'absolute', top: '20px', right: '20px', backgroundColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', padding: '10px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          title="Pantalla Completa"
+        >
+          {isFullscreen ? <Minimize size={20} color="white" /> : <Maximize size={20} color="white" />}
+        </button>
+
         <div className="glass-panel" style={{ padding: '2px', borderRadius: '26px', marginBottom: '56px', marginTop: '60px', background: 'linear-gradient(135deg, #0ea5e9, #38bdf8, #0ea5e9)', boxShadow: '0 25px 60px -12px rgba(14, 165, 233, 0.45)' }}>
           <div style={{ padding: '40px 80px', borderRadius: '24px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.97)' }}>
             <h1 style={{ color: '#0ea5e9', fontSize: '72px', fontWeight: '900', margin: 0, letterSpacing: '-2px', lineHeight: '1', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>AUBASA</h1>
