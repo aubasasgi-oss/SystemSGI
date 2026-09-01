@@ -7,7 +7,8 @@ import { listarRiesgos, guardarRiesgo, eliminarRiesgo } from '../lib/risksApi';
 
 const SECTORES = [
   "Todos", "Gerencia de Operaciones", "Gerencia Comercial", "Asistencia Vial",
-  "Mantenimiento", "SGI", "Recursos Humanos", "Sistemas", "Asuntos Legales", "Gerencia de Compras"
+  "Mantenimiento", "SGI", "Recursos Humanos", "Sistemas", "Asuntos Legales", "Gerencia de Compras",
+  "Centro de Control y Monitoreo"
 ];
 
 const CONCESIONES = ["BALP", "SVIA", "BALP-SVIA"];

@@ -1644,7 +1644,7 @@ const Dashboard = () => {
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
             {hdr('Indisponibilidad General de Vias de Cobro', '#0ea5e9')}
             <div style={{ height: '180px', overflow: 'hidden', padding: '16px' }}>
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={360}>
                 <PieChart>
                   <Pie data={[{ value: Math.min(pctGral, 10), fill: '#0ea5e9' }, { value: Math.max(0, 10 - pctGral), fill: '#f1f5f9' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
                     innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
