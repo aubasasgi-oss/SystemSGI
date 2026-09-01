@@ -1453,7 +1453,7 @@ const Dashboard = () => {
             
             <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ padding: '6px 16px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>Trimestre</div>
-              <div style={{ display: 'flex', flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap' }}>
                 <button onClick={() => setInstitucionalesMes(null)} style={{ padding: '6px 12px', border: 'none', borderLeft: '1px solid #64748b', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: !institucionalesMes ? '#334155' : '#475569', color: 'white' }}>Seleccionar ...</button>
                 {MESES.map(m => (
                   <button key={m} onClick={() => setInstitucionalesMes(m)}
@@ -1772,7 +1772,7 @@ const Dashboard = () => {
             
             <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ padding: '6px 16px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>Trimestre</div>
-              <div style={{ display: 'flex', flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap' }}>
                 <button onClick={() => setRrhhMes(null)} style={{ padding: '6px 12px', border: 'none', borderLeft: '1px solid #64748b', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: !rrhhMes ? '#334155' : '#475569', color: 'white' }}>Seleccionar ...</button>
                 {MESES.map(m => (
                   <button key={m} onClick={() => setRrhhMes(m)}
@@ -1910,7 +1910,7 @@ const Dashboard = () => {
             
             <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ padding: '6px 16px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>Mes</div>
-              <div style={{ display: 'flex', flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap' }}>
                 <button onClick={() => setSistemasMes(null)} style={{ padding: '6px 12px', border: 'none', borderLeft: '1px solid #64748b', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: !sistemasMes ? '#334155' : '#475569', color: 'white' }}>Seleccionar ...</button>
                 {MESES.map(m => (
                   <button key={m} onClick={() => setSistemasMes(m)}
@@ -2073,7 +2073,7 @@ const Dashboard = () => {
             
             <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ padding: '6px 16px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>Trimestre</div>
-              <div style={{ display: 'flex', flex: 1, overflowX: 'auto', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flex: 1, flexWrap: 'wrap' }}>
                 <button onClick={() => setLegalesMes(null)} style={{ padding: '6px 12px', border: 'none', borderLeft: '1px solid #64748b', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: !legalesMes ? '#334155' : '#475569', color: 'white' }}>Seleccionar ...</button>
                 {MESES.map(m => (
                   <button key={m} onClick={() => setLegalesMes(m)}
