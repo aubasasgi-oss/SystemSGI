@@ -7,6 +7,7 @@ import AsistenciaMetricsForms from '../components/AsistenciaMetricsForms';
 import OperacionesMetricsForms from '../components/OperacionesMetricsForms';
 import CcmMetricsForms from '../components/CcmMetricsForms';
 import MantenimientoMetricsForms from '../components/MantenimientoMetricsForms';
+import RrhhMetricsForms from '../components/RrhhMetricsForms';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -501,6 +502,15 @@ const SectorMetrics = () => {
     );
   }
 
+  if (activeForm === 'rrhh') {
+    return (
+      <div>
+        {sgiSelector}
+        <RrhhMetricsForms />
+      </div>
+    );
+  }
+
   return (
     <div className="module-container">
       <div className="module-header animate-fade-in">
@@ -518,7 +528,6 @@ const SectorMetrics = () => {
             <select className="form-control" value={activeForm} onChange={(e) => setActiveForm(e.target.value)} style={{ width: '350px' }}>
               <option value="comercial">Gerencia Comercial</option>
               <option value="operaciones_spp">Gerencia de Operaciones (SPP)</option>
-              <option value="rrhh">Gerencia de Recursos Humanos</option>
               <option value="compras">Gerencia de Compras</option>
               <option value="legales">Gerencia de Asuntos Legales</option>
               <option value="sistemas">Gerencia de Tecnología y Sistemas</option>

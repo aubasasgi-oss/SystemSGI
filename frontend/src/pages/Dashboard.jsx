@@ -8,6 +8,7 @@ import { listarAsistenciaMetricsMultiples } from '../lib/asistenciaMetricsApi';
 import { listarOperacionesMetrics } from '../lib/operacionesMetricsApi';
 import { listarCcmMetricsMultiples } from '../lib/ccmMetricsApi';
 import { listarMantenimientoMetricsMultiples } from '../lib/mantenimientoMetricsApi';
+import { listarRrhhMetricsMultiples } from '../lib/rrhhMetricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -268,13 +269,27 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'rrhh') {
-      obtenerMetricaMensual('rrhh', rrhhAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
+      const MESES_RRHH = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
+
+      listarRrhhMetricsMultiples(['tiempo_respuesta'])
+        .then(rows => {
+          const map = {};
+          rows.forEach(r => {
+            if (!r.fecha) return;
+            const d = new Date(r.fecha + 'T00:00:00');
+            if (d.getFullYear() !== rrhhAnio) return;
+            const mes = MESES_RRHH[d.getMonth()];
+            if (!map[mes]) map[mes] = [];
+            map[mes].push(r.data || {});
           });
-          setRrhhMetrics(sorted);
+
+          const arr = Object.entries(map).map(([month, entries]) => ({
+            month,
+            data: { rh_ingresos: { ingresadas: sum(entries, 'ingresadas'), solicitadas: sum(entries, 'solicitadas') } },
+          }));
+
+          setRrhhMetrics(arr);
         })
         .catch(() => setRrhhMetrics([]));
     }
