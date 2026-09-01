@@ -588,7 +588,7 @@ const Dashboard = () => {
     const barDataCorreos = [{ name: 'Correos', respondidos: sumCorreosOk, totales: sumCorreosTot }];
 
     const bgStyle = {
-       backgroundImage: 'linear-gradient(rgba(15, 45, 110, 0.85), rgba(15, 45, 110, 0.95)), url("https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop")',
+       backgroundImage: 'linear-gradient(rgba(15, 45, 110, 0.85), rgba(15, 45, 110, 0.95)), url("https://images.unsplash.com/photo-1782754521601-19691d69c25f?q=80&w=2070&auto=format&fit=crop")',
        backgroundSize: 'cover',
        backgroundPosition: 'center',
        backgroundAttachment: 'fixed',
@@ -2241,7 +2241,7 @@ const Dashboard = () => {
 
     if (asistenciaView === 'home') {
        return (
-          <div className="animate-fade-in delay-1" style={{...bgStyle, position: 'relative', backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.95)), url("https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2069&auto=format&fit=crop")', backgroundSize: 'cover', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+          <div className="animate-fade-in delay-1" style={{...bgStyle, position: 'relative', backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.95)), url("https://images.unsplash.com/photo-1782754521601-19691d69c25f?q=80&w=2070&auto=format&fit=crop")', backgroundSize: 'cover', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
              <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', top: '20px', left: '20px', backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', color: 'white', padding: '10px 18px', fontSize: '13px', fontWeight: 700, borderRadius: '20px', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer' }}>← Volver al Portal</button>
              <div className="glass-panel" style={{ padding: '40px 80px', borderRadius: '24px', marginBottom: '60px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.95)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', border: '1px solid rgba(255,255,255,1)' }}>
                  <h1 style={{ color: '#0ea5e9', fontSize: '72px', fontWeight: '900', margin: 0, letterSpacing: '-2px', lineHeight: '1', textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>AUBASA</h1>
