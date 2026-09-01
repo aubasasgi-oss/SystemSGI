@@ -373,6 +373,38 @@ const Dashboard = () => {
     }
   }, [activeGerencia, rrhhAnio]);
 
+  // Media luna de progreso dibujada en SVG puro (sin Recharts/Pie): evita el
+  // truco de "cy=100% + recortar la mitad del canvas" que dependía del ancho
+  // exacto de cada tarjeta y se rompía en tarjetas más anchas o angostas que
+  // las que se usaron para calibrarlo. El viewBox escala solo, así que se ve
+  // igual de bien sin importar cuán ancha sea la tarjeta que lo contiene.
+  const SemiGauge = ({ value, fillValue, objetivo, color = '#16a34a', trackColor = '#e2e8f0', decimals = 0, scaleLabels }) => {
+    const displayValue = Number(value) || 0;
+    const fillPct = Math.max(0, Math.min(100, Number(fillValue ?? value) || 0));
+    const W = 200, STROKE = 22;
+    const R = (W - STROKE) / 2;
+    const CY = W / 2;
+    const H = W / 2 + STROKE / 2;
+    const circumference = Math.PI * R;
+    const offset = circumference * (1 - fillPct / 100);
+    return (
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'right', padding: '4px 10px 0', fontSize: '13px', fontWeight: 700, color: '#64748b', minHeight: '20px' }}>
+          {objetivo != null && objetivo !== '' ? objetivo + ' %' : ''}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+          <path d={`M ${STROKE / 2} ${CY} A ${R} ${R} 0 0 1 ${W - STROKE / 2} ${CY}`} fill="none" stroke={trackColor} strokeWidth={STROKE} strokeLinecap="round" />
+          <path d={`M ${STROKE / 2} ${CY} A ${R} ${R} 0 0 1 ${W - STROKE / 2} ${CY}`} fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round"
+            strokeDasharray={circumference} strokeDashoffset={offset} />
+        </svg>
+        <div style={{ marginTop: '-6px', fontSize: '32px', fontWeight: 900, color, lineHeight: 1 }}>{displayValue.toFixed(decimals)} %</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 14px 10px', fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>
+          <span>{scaleLabels ? scaleLabels[0] : '0 %'}</span><span>{scaleLabels ? scaleLabels[1] : '100 %'}</span>
+        </div>
+      </div>
+    );
+  };
+
   const renderPortal = () => {
     return (
       <div className="animate-fade-in" style={{
@@ -1067,34 +1099,12 @@ const Dashboard = () => {
     const hdr = (t) => <div style={{ backgroundColor: '#3b82f6', color: 'white', padding: '9px 12px', textAlign: 'center', fontWeight: 700, fontSize: '12px', lineHeight: '1.4' }}>{t}</div>;
 
     // â”€â”€ Gauge con número DEBAJO del arco (sin superposición) â”€â”€
-    const GaugeCCM = ({ value, label, objetivo, color }) => {
-      const safe = Math.max(0, Math.min(100, value));
-      const data = [{ value: safe, fill: color }, { value: 100 - safe, fill: '#e2e8f0' }];
-      return (
-        <div style={{ ...card }}>
-          {hdr(label)}
-          <div style={{ padding: '6px 8px 0', textAlign: 'right', fontSize: '12px', fontWeight: 700, color: '#16a34a', minHeight: '20px' }}>
-            {objetivo != null ? objetivo + ' %' : ''}
-          </div>
-          {/* SVG con cy=100%: el centro del arco queda al fondo del contenedor â†’ solo se ve la mitad superior */}
-          <div style={{ height: '90px', overflow: 'hidden' }}>
-            <ResponsiveContainer width="100%" height={180}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                  innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          {/* Número DEBAJO del arco, en flujo normal */}
-          <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
-            <span style={{ fontSize: '30px', fontWeight: 900, color }}>{value.toFixed(0)} %</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 14px 10px', fontSize: '11px', color: '#94a3b8' }}>
-            <span>0 %</span><span>100 %</span>
-          </div>
-        </div>
-      );
-    };
+    const GaugeCCM = ({ value, label, objetivo, color }) => (
+      <div style={{ ...card }}>
+        {hdr(label)}
+        <SemiGauge value={value} objetivo={objetivo} color={color} />
+      </div>
+    );
 
     return (
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#dbeafe', minHeight: '100vh', padding: '20px' }}>
@@ -1279,32 +1289,12 @@ const Dashboard = () => {
     const card = { backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' };
     const hdr = (t, color) => <div style={{ backgroundColor: color, color: 'white', padding: '9px 12px', textAlign: 'center', fontWeight: 700, fontSize: '13px', lineHeight: '1.4' }}>{t}</div>;
 
-    const GaugeMant = ({ value, label, objetivo, color, trackColor }) => {
-      const safe = Math.max(0, Math.min(100, value));
-      const data = [{ value: safe, fill: color }, { value: 100 - safe, fill: trackColor }];
-      return (
-        <div style={{ ...card, border: `2px solid ${color}` }}>
-          {hdr(label, '#0ea5e9')}
-          <div style={{ padding: '6px 8px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#1d4ed8', minHeight: '20px' }}>
-            {objetivo != null ? objetivo + ' %' : ''}
-          </div>
-          <div style={{ height: '100px', overflow: 'hidden', marginTop: '-10px' }}>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                  innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ textAlign: 'center', padding: '0 0 4px' }}>
-            <span style={{ fontSize: '32px', fontWeight: 900, color }}>{value.toFixed(0)} %</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 18px 10px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
-            <span>0 %</span><span>100 %</span>
-          </div>
-        </div>
-      );
-    };
+    const GaugeMant = ({ value, label, objetivo, color, trackColor }) => (
+      <div style={{ ...card, border: `2px solid ${color}` }}>
+        {hdr(label, '#0ea5e9')}
+        <SemiGauge value={value} objetivo={objetivo} color={color} trackColor={trackColor} />
+      </div>
+    );
 
     return (
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#cbd5e1', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column' }}>
@@ -1419,32 +1409,12 @@ const Dashboard = () => {
     const card = { backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden', border: '1px solid #cbd5e1' };
     const hdr = (t, color) => <div style={{ backgroundColor: color, color: 'white', padding: '9px 12px', textAlign: 'center', fontWeight: 700, fontSize: '13px', lineHeight: '1.4' }}>{t}</div>;
 
-    const GaugeInst = ({ value, label, objetivo, color, trackColor }) => {
-      const safe = Math.max(0, Math.min(100, value));
-      const data = [{ value: safe, fill: color }, { value: 100 - safe, fill: trackColor }];
-      return (
-        <div style={{ ...card, flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {hdr(label, '#0ea5e9')}
-          <div style={{ padding: '6px 8px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#64748b', minHeight: '20px' }}>
-            {objetivo != null ? objetivo + ' %' : ''}
-          </div>
-          <div style={{ height: '120px', overflow: 'hidden', marginTop: '-10px' }}>
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                  innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ textAlign: 'center', padding: '0 0 4px' }}>
-            <span style={{ fontSize: '32px', fontWeight: 900, color }}>{value.toFixed(0)} %</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 18px 10px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
-            <span>0 %</span><span>100 %</span>
-          </div>
-        </div>
-      );
-    };
+    const GaugeInst = ({ value, label, objetivo, color, trackColor }) => (
+      <div style={{ ...card, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {hdr(label, '#0ea5e9')}
+        <SemiGauge value={value} objetivo={objetivo} color={color} trackColor={trackColor} />
+      </div>
+    );
 
     const fakeTable = [
       { id: 17, min: 0, estado: 'Publicado a tiempo' },
@@ -1662,21 +1632,7 @@ const Dashboard = () => {
           
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
             {hdr('Indisponibilidad General de Vias de Cobro', '#0ea5e9')}
-            <div style={{ height: '170px', overflow: 'hidden', padding: '0 16px' }}>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie data={[{ value: Math.min(pctGral, 10), fill: '#0ea5e9' }, { value: Math.max(0, 10 - pctGral), fill: '#f1f5f9' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                    innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
-              <span style={{ fontSize: '36px', fontWeight: 900, color: '#f43f5e' }}>{pctGral.toFixed(1)} %</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 16px 16px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
-              <span style={{ color: '#0ea5e9' }}>4,0 %</span>
-              <span>50,0 %</span>
-            </div>
+            <SemiGauge value={pctGral} fillValue={Math.min(pctGral, 10) * 10} decimals={1} color="#f43f5e" trackColor="#f1f5f9" scaleLabels={['4,0 %', '50,0 %']} />
           </div>
 
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
@@ -1838,24 +1794,7 @@ const Dashboard = () => {
           
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
             {hdr('Cumplimiento del Tiempo de respuesta ante la solicitud de personal externo(% solicitudes con t ≤ 60 días)', '#0ea5e9')}
-            <div style={{ padding: '6px 16px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#eab308', minHeight: '20px' }}>
-              95,00 %
-            </div>
-            <div style={{ height: '170px', overflow: 'hidden' }}>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie data={[{ value: Math.min(pctGral, 100), fill: '#22c55e' }, { value: Math.max(0, 100 - pctGral), fill: '#dcfce7' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                    innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
-              <span style={{ fontSize: '36px', fontWeight: 900, color: '#16a34a' }}>{pctGral.toFixed(0)} %</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 16px 16px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
-              <span>0 %</span>
-              <span>100 %</span>
-            </div>
+            <SemiGauge value={pctGral} objetivo="95,00" color="#16a34a" trackColor="#dcfce7" />
           </div>
 
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
@@ -1938,32 +1877,12 @@ const Dashboard = () => {
     const card = { backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' };
     const hdr = (t, color) => <div style={{ backgroundColor: color, color: 'white', padding: '9px 12px', textAlign: 'center', fontWeight: 700, fontSize: '13px', lineHeight: '1.4' }}>{t}</div>;
 
-    const GaugeSis = ({ value, label, objetivo, color, trackColor }) => {
-      const safe = Math.max(0, Math.min(100, value));
-      const data = [{ value: safe, fill: color }, { value: 100 - safe, fill: trackColor }];
-      return (
-        <div style={{ ...card, flex: 1, display: 'flex', flexDirection: 'column', border: `2px solid #94a3b8` }}>
-          {hdr(label, '#0ea5e9')}
-          <div style={{ padding: '6px 8px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#0ea5e9', minHeight: '20px' }}>
-            {objetivo != null ? objetivo + ' %' : ''}
-          </div>
-          <div style={{ height: '110px', overflow: 'hidden', marginTop: '-10px' }}>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                  innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ textAlign: 'center', padding: '0 0 4px' }}>
-            <span style={{ fontSize: '32px', fontWeight: 900, color }}>{value.toFixed(0)} %</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 18px 10px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
-            <span>0 %</span><span>100 %</span>
-          </div>
-        </div>
-      );
-    };
+    const GaugeSis = ({ value, label, objetivo, color, trackColor }) => (
+      <div style={{ ...card, flex: 1, display: 'flex', flexDirection: 'column', border: `2px solid #94a3b8` }}>
+        {hdr(label, '#0ea5e9')}
+        <SemiGauge value={value} objetivo={objetivo} color={color} trackColor={trackColor} />
+      </div>
+    );
 
     return (
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#cbd5e1', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column' }}>
@@ -2122,32 +2041,12 @@ const Dashboard = () => {
     const card = { backgroundColor: '#f8fafc', borderRadius: '4px', overflow: 'hidden', border: '1px solid #cbd5e1' };
     const hdr = (t, color) => <div style={{ backgroundColor: color, color: 'white', padding: '9px 12px', textAlign: 'center', fontWeight: 700, fontSize: '13px', lineHeight: '1.4' }}>{t}</div>;
 
-    const GaugeLegales = ({ value, label, objetivo, color, trackColor }) => {
-      const safe = Math.max(0, Math.min(100, value));
-      const data = [{ value: safe, fill: color }, { value: 100 - safe, fill: trackColor }];
-      return (
-        <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
-          {hdr(label, '#0ea5e9')}
-          <div style={{ padding: '6px 8px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#64748b', minHeight: '20px' }}>
-            {objetivo != null ? objetivo + ' %' : ''}
-          </div>
-          <div style={{ height: '140px', overflow: 'hidden', marginTop: '-10px' }}>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                  innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ textAlign: 'center', padding: '0 0 4px' }}>
-            <span style={{ fontSize: '36px', fontWeight: 900, color }}>{value.toFixed(0)} %</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 18px 10px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
-            <span>0 %</span><span>100 %</span>
-          </div>
-        </div>
-      );
-    };
+    const GaugeLegales = ({ value, label, objetivo, color, trackColor }) => (
+      <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
+        {hdr(label, '#0ea5e9')}
+        <SemiGauge value={value} objetivo={objetivo} color={color} trackColor={trackColor} />
+      </div>
+    );
 
     return (
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#e2e8f0', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column' }}>
