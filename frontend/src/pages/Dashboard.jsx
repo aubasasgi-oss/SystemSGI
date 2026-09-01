@@ -1662,8 +1662,8 @@ const Dashboard = () => {
           
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
             {hdr('Indisponibilidad General de Vias de Cobro', '#0ea5e9')}
-            <div style={{ height: '90px', overflow: 'hidden', padding: '16px 16px 0' }}>
-              <ResponsiveContainer width="100%" height={180}>
+            <div style={{ height: '170px', overflow: 'hidden', padding: '0 16px' }}>
+              <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie data={[{ value: Math.min(pctGral, 10), fill: '#0ea5e9' }, { value: Math.max(0, 10 - pctGral), fill: '#f1f5f9' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
                     innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
@@ -1841,8 +1841,8 @@ const Dashboard = () => {
             <div style={{ padding: '6px 16px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#eab308', minHeight: '20px' }}>
               95,00 %
             </div>
-            <div style={{ height: '90px', overflow: 'hidden' }}>
-              <ResponsiveContainer width="100%" height={180}>
+            <div style={{ height: '170px', overflow: 'hidden' }}>
+              <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie data={[{ value: Math.min(pctGral, 100), fill: '#22c55e' }, { value: Math.max(0, 100 - pctGral), fill: '#dcfce7' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
                     innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
