@@ -7,6 +7,7 @@ import { listarComercialMetricsMultiples } from '../lib/comercialMetricsApi';
 import { listarAsistenciaMetricsMultiples } from '../lib/asistenciaMetricsApi';
 import { listarOperacionesMetrics } from '../lib/operacionesMetricsApi';
 import { listarCcmMetricsMultiples } from '../lib/ccmMetricsApi';
+import { listarMantenimientoMetricsMultiples } from '../lib/mantenimientoMetricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -164,13 +165,36 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'mantenimiento') {
-      obtenerMetricaMensual('mantenimiento', mantenimientoAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
-          });
-          setMantenimientoMetrics(sorted);
+      const MESES_MANT = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
+      const bucketPorMes = (rows) => {
+        const map = {};
+        rows.forEach(r => {
+          if (!r.fecha) return;
+          const d = new Date(r.fecha + 'T00:00:00');
+          if (d.getFullYear() !== mantenimientoAnio) return;
+          const mes = MESES_MANT[d.getMonth()];
+          if (!map[mes]) map[mes] = [];
+          map[mes].push(r.data || {});
+        });
+        return map;
+      };
+
+      listarMantenimientoMetricsMultiples(['pmp', 'mc'])
+        .then(rows => {
+          const pmpBucket = bucketPorMes(rows.filter(r => r.tipo === 'pmp'));
+          const mcBucket = bucketPorMes(rows.filter(r => r.tipo === 'mc'));
+          const allMonths = new Set([...Object.keys(pmpBucket), ...Object.keys(mcBucket)]);
+
+          const combined = Array.from(allMonths).map(month => ({
+            month,
+            data: {
+              man1: { prev_realizados: sum(pmpBucket[month] || [], 'prev_realizados'), prev_planificados: sum(pmpBucket[month] || [], 'prev_planificados') },
+              man2: { corr_realizados: sum(mcBucket[month] || [], 'corr_realizados'), corr_solicitados: sum(mcBucket[month] || [], 'corr_solicitados') },
+            },
+          }));
+
+          setMantenimientoMetrics(combined);
         })
         .catch(() => setMantenimientoMetrics([]));
     }
