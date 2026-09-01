@@ -1662,16 +1662,16 @@ const Dashboard = () => {
           
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
             {hdr('Indisponibilidad General de Vias de Cobro', '#0ea5e9')}
-            <div style={{ height: '180px', overflow: 'hidden', padding: '16px' }}>
-              <ResponsiveContainer width="100%" height={360}>
+            <div style={{ height: '90px', overflow: 'hidden', padding: '16px 16px 0' }}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie data={[{ value: Math.min(pctGral, 10), fill: '#0ea5e9' }, { value: Math.max(0, 10 - pctGral), fill: '#f1f5f9' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                    innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
+                    innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '-60px', paddingBottom: '20px' }}>
-              <span style={{ fontSize: '48px', fontWeight: 900, color: '#f43f5e' }}>{pctGral.toFixed(1)} %</span>
+            <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
+              <span style={{ fontSize: '36px', fontWeight: 900, color: '#f43f5e' }}>{pctGral.toFixed(1)} %</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 16px 16px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
               <span style={{ color: '#0ea5e9' }}>4,0 %</span>
@@ -1838,17 +1838,19 @@ const Dashboard = () => {
           
           <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
             {hdr('Cumplimiento del Tiempo de respuesta ante la solicitud de personal externo(% solicitudes con t ≤ 60 días)', '#0ea5e9')}
-            <div style={{ height: '180px', overflow: 'hidden', padding: '16px' }}>
-              <ResponsiveContainer width="100%" height={360}>
+            <div style={{ padding: '6px 16px 0', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#eab308', minHeight: '20px' }}>
+              95,00 %
+            </div>
+            <div style={{ height: '90px', overflow: 'hidden' }}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie data={[{ value: Math.min(pctGral, 100), fill: '#22c55e' }, { value: Math.max(0, 100 - pctGral), fill: '#dcfce7' }]} cx="50%" cy="100%" startAngle={180} endAngle={0}
-                    innerRadius="65%" outerRadius="90%" dataKey="value" stroke="none" />
+                    innerRadius="60%" outerRadius="88%" dataKey="value" stroke="none" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ textAlign: 'center', marginTop: '-60px', paddingBottom: '20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '48px', fontWeight: 900, color: '#16a34a', lineHeight: '1' }}>{pctGral.toFixed(0)} %</span>
-              <span style={{ fontSize: '14px', fontWeight: 700, color: '#eab308' }}>95,00 %</span>
+            <div style={{ textAlign: 'center', padding: '4px 0 2px' }}>
+              <span style={{ fontSize: '36px', fontWeight: 900, color: '#16a34a' }}>{pctGral.toFixed(0)} %</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 16px 16px', fontSize: '12px', color: '#64748b', fontWeight: 700 }}>
               <span>0 %</span>
@@ -1876,9 +1878,9 @@ const Dashboard = () => {
         </div>
 
         {/* Bottom row */}
-        <div style={{ ...card, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
           {hdr('Cantidad total de personas externas solicitadas por mes', '#0ea5e9')}
-          <div style={{ flex: 1, padding: '16px', minHeight: '260px' }}>
+          <div style={{ height: '300px', padding: '16px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart layout="vertical" data={[...monthlyData].reverse()} margin={{ top: 0, right: 40, bottom: 0, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#cbd5e1" />
