@@ -1300,9 +1300,9 @@ const Dashboard = () => {
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#cbd5e1', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column' }}>
 
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '320px', position: 'relative' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', bottom: '12px', right: '12px', backgroundColor: '#0ea5e9', color: 'white', width: '32px', height: '32px', borderRadius: '16px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>←</button>
-            <div style={{ textAlign: 'center', color: '#1e293b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>TALLER MECANICO -<br/>GERENCIA MANTENIMIENTO</div>
+          <div style={{ backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+            <div style={{ flex: 1, textAlign: 'center', color: '#1e293b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>TALLER MECANICO -<br/>GERENCIA MANTENIMIENTO</div>
+            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#0ea5e9', color: 'white', width: '32px', height: '32px', borderRadius: '16px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>←</button>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1432,9 +1432,9 @@ const Dashboard = () => {
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#e2e8f0', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column' }}>
 
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '320px', position: 'relative' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>SUBGERENCIA DE RELACIONES<br/>INSTITUCIONALES</div>
+          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>SUBGERENCIA DE RELACIONES<br/>INSTITUCIONALES</div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1589,9 +1589,9 @@ const Dashboard = () => {
 
         {/* Top Header */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '320px', position: 'relative' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>SISTEMA DE PERCEPCION<br/>DE PEAJE</div>
+          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>SISTEMA DE PERCEPCION<br/>DE PEAJE</div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1751,9 +1751,9 @@ const Dashboard = () => {
 
         {/* Top Header */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '320px', position: 'relative' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '20px', lineHeight: '1.2' }}>GESTION DEL PERSONAL</div>
+          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '20px', lineHeight: '1.2' }}>GESTION DEL PERSONAL</div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1889,9 +1889,9 @@ const Dashboard = () => {
 
         {/* Top Bar */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '320px', position: 'relative' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2', textTransform: 'uppercase' }}>PLAN DE MANTENIMIENTO<br/>- GERENCIA DE SISTEMAS</div>
+          <div style={{ backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2', textTransform: 'uppercase' }}>PLAN DE MANTENIMIENTO<br/>- GERENCIA DE SISTEMAS</div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2052,9 +2052,9 @@ const Dashboard = () => {
       <div className="animate-fade-in delay-1" style={{ backgroundColor: '#e2e8f0', minHeight: '100vh', padding: '16px', display: 'flex', flexDirection: 'column' }}>
 
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', flexDirection: 'column', justifyContent: 'center', minWidth: '320px', position: 'relative' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>GERENCIA DE ASUNTOS<br/>LEGALES</div>
+          <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>GERENCIA DE ASUNTOS<br/>LEGALES</div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2109,13 +2109,13 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#f8fafc', borderRadius: '4px', overflow: 'hidden', border: '1px solid #cbd5e1', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ backgroundColor: '#f8fafc', borderRadius: '4px', overflow: 'hidden', border: '1px solid #cbd5e1', display: 'flex', flexDirection: 'column' }}>
           {hdr('Cumplimiento respuestas a la Gerencia Comercial', '#0ea5e9')}
           <div style={{ display: 'flex', justifyContent: 'center', padding: '8px', gap: '16px', fontSize: '13px', fontWeight: 800 }}>
               <span style={{ color: '#7dd3fc' }}>● Cantidad de respuestas comunicadas dentro del plazo estipulado (≤ 7 días)</span>
               <span style={{ color: '#818cf8' }}>● Cantidad total de respuestas solicitadas</span>
           </div>
-          <div style={{ flex: 1, padding: '0 16px 16px', minHeight: '260px' }}>
+          <div style={{ height: '300px', padding: '0 16px 16px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyData.length ? monthlyData : MESES.map(m=>({name: m}))} margin={{ top: 20, right: 20, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
