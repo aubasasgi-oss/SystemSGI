@@ -90,14 +90,20 @@ const Dashboard = () => {
       document.documentElement.requestFullscreen().catch(err => {
         console.error("Error attempting to enable fullscreen:", err);
       });
-      setIsFullscreen(true);
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-        setIsFullscreen(false);
-      }
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen();
     }
   };
+
+  // ESC (u otra forma de salir de pantalla completa que no pase por el botón,
+  // como la propia UI del navegador) dispara este evento nativo igual que el
+  // botón — sin este listener, el ícono quedaba mostrando "Minimizar" aunque
+  // ya se había salido de pantalla completa.
+  useEffect(() => {
+    const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   useEffect(() => {
     if (activeGerencia === 'comercial') {
@@ -1736,10 +1742,10 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#cbd5e1" />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600 }} axisLine={false} tickLine={false} />
                   <YAxis yAxisId="left" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="right" orientation="right" hide domain={[0, 'dataMax']} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#dc2626' }} axisLine={false} tickLine={false} domain={[0, 'dataMax']} />
                   <Tooltip />
                   <Bar yAxisId="left" dataKey="horas_mensuales" fill="#fde047" barSize={60} />
-                  <Line yAxisId="right" type="monotone" dataKey="horas_fuera" stroke="#ef4444" strokeWidth={3} dot={false} label={{ position: 'top', fontSize: 14, fontWeight: 900, fill: '#dc2626' }} />
+                  <Line yAxisId="right" type="monotone" dataKey="horas_fuera" stroke="#ef4444" strokeWidth={3} dot={{ r: 4, fill: '#ef4444' }} label={{ position: 'top', fontSize: 14, fontWeight: 900, fill: '#dc2626' }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
