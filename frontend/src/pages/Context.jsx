@@ -1,55 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Edit2, Lock, Plus, CheckCircle, AlertTriangle, Download } from 'lucide-react';
+import { Search, Edit2, Trash2, Lock, Plus, CheckCircle, AlertTriangle, Download } from 'lucide-react';
 import RiskHeatmap from '../components/RiskHeatmap';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-
-export const initialContext = [
-  {
-    id: 'C-01',
-    factorCritico: 'MARCO POLÍTICO (Riesgo Electoral)',
-    contexto: 'Externo',
-    riesgo: 'Cambios regulatorios o de concesión por elecciones. Puede profundizar tensiones o impactar en tarifas.',
-    proceso: 'Gerencia General / Asuntos Legales',
-    partesInteresadas: 'Concedente (PBA) / Estado Nacional / Organismos Reguladores',
-    probabilidad: 3,
-    impacto: 3,
-    planAccion: 'Monitoreo permanente del calendario electoral. Articulación estrecha con Ministerio de Infraestructura PBA.',
-    responsable: 'Ger. General / Ger. Asuntos Legales',
-    ocurrio: '',
-    fechaOcurrencia: '',
-    eficacia: '',
-    respMedicion: '',
-    fechaMedicion: '',
-    año: 2026
-  },
-  {
-    id: 'C-02',
-    factorCritico: 'TECNOLOGÍA (Ciberseguridad)',
-    contexto: 'Interno',
-    riesgo: 'Ataque de ransomware a los sistemas críticos operativos y de cobro.',
-    proceso: 'Sistemas',
-    partesInteresadas: 'Usuarios / Empleados / Proveedores IT',
-    probabilidad: 2,
-    impacto: 5,
-    planAccion: 'Implementación de SOC 24/7 y auditoría de vulnerabilidades semestral.',
-    responsable: 'Gerencia de Sistemas',
-    ocurrio: 'No',
-    fechaOcurrencia: '',
-    eficacia: 'Eficaz',
-    respMedicion: 'Auditor Externo',
-    fechaMedicion: '2026-05-10',
-    año: 2026
-  }
-];
+import { listarContexto, guardarContexto, eliminarContexto } from '../lib/contextoApi';
 
 export default function Context() {
   const { userRole } = useAuth();
-  const [items, setItems] = useState(initialContext);
+  const [items, setItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('table');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const cargarItems = () => {
+    setLoadingItems(true);
+    listarContexto()
+      .then(setItems)
+      .catch(err => { console.error(err); setItems([]); })
+      .finally(() => setLoadingItems(false));
+  };
+
+  useEffect(() => {
+    cargarItems();
+  }, []);
 
   const filteredItems = items.filter(r => 
     r.riesgo.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -62,12 +38,21 @@ export default function Context() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    if (selectedItem.id) {
-      setItems(items.map(r => r.id === selectedItem.id ? selectedItem : r));
-    } else {
-      setItems([...items, { ...selectedItem, id: `C-0${items.length + 1}` }]);
-    }
-    setViewMode('table');
+    setSaving(true);
+    guardarContexto(selectedItem)
+      .then(() => {
+        cargarItems();
+        setViewMode('table');
+      })
+      .catch(err => alert('Error al guardar: ' + err.message))
+      .finally(() => setSaving(false));
+  };
+
+  const handleDelete = (item) => {
+    if (!window.confirm(`¿Eliminar el factor ${item.id}? Esta acción no se puede deshacer.`)) return;
+    eliminarContexto(item.id)
+      .then(cargarItems)
+      .catch(err => alert('Error al eliminar: ' + err.message));
   };
 
   const getNivelBadge = (p, i) => {
@@ -224,11 +209,16 @@ export default function Context() {
                     <td>
                       {r.eficacia === 'Eficaz' ? <CheckCircle size={16} color="#16a34a" /> : r.eficacia ? <AlertTriangle size={16} color="#eab308" /> : '-'}
                     </td>
-                    <td style={{textAlign:'right'}}>
+                    <td style={{textAlign:'right', whiteSpace: 'nowrap'}}>
                       {canEdit() ? (
-                        <button className="btn btn-icon" onClick={() => { setSelectedItem(r); setViewMode('form'); }}>
-                          <Edit2 size={16} />
-                        </button>
+                        <>
+                          <button className="btn btn-icon" onClick={() => { setSelectedItem(r); setViewMode('form'); }}>
+                            <Edit2 size={16} />
+                          </button>
+                          <button className="btn btn-icon" onClick={() => handleDelete(r)} title="Eliminar definitivamente">
+                            <Trash2 size={16} color="#dc2626" />
+                          </button>
+                        </>
                       ) : (
                         <button className="btn btn-icon" disabled title="Solo SGI puede editar el contexto">
                           <Lock size={16} color="#94a3b8" />
@@ -237,10 +227,17 @@ export default function Context() {
                     </td>
                   </tr>
                 ))}
-                {filteredItems.length === 0 && (
+                {!loadingItems && filteredItems.length === 0 && (
                   <tr>
                     <td colSpan="13" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                       No se encontraron factores en el contexto.
+                    </td>
+                  </tr>
+                )}
+                {loadingItems && (
+                  <tr>
+                    <td colSpan="13" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                      Cargando...
                     </td>
                   </tr>
                 )}
@@ -353,7 +350,7 @@ export default function Context() {
 
             <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setViewMode('table')}>Cancelar</button>
-              <button type="submit" className="btn btn-primary">Guardar Factor</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : 'Guardar Factor'}</button>
             </div>
           </form>
         </div>

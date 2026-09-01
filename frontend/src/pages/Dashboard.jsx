@@ -1889,9 +1889,9 @@ const Dashboard = () => {
 
         {/* Top Bar */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
-          <div style={{ backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
+          <div style={{ backgroundColor: '#f1f5f9', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '380px' }}>
             <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2', textTransform: 'uppercase' }}>PLAN DE MANTENIMIENTO<br/>- GERENCIA DE SISTEMAS</div>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '16px', lineHeight: '1.2', textTransform: 'uppercase' }}>PLAN DE MANTENIMIENTO<br/>- GERENCIA DE SISTEMAS</div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

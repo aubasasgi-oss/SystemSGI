@@ -6,7 +6,7 @@ import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker } from 'tesseract.js';
 import { listarIndicadores } from '../lib/indicadoresApi';
 import { listarRiesgos } from '../lib/risksApi';
-import { initialContext } from '../pages/Context';
+import { listarContexto } from '../lib/contextoApi';
 import { mockReviews } from '../pages/ManagementReview';
 
 // Si una página trae muy poco texto "real" (menos de este umbral), suele
@@ -192,7 +192,10 @@ const ChatbotWidget = () => {
         const riskContext = "RIESGOS:\n" + (riesgosReales.length
           ? riesgosReales.map(r => `- Riesgo: ${r.riesgo}, Consecuencias: ${r.consecuencias}, Proceso: ${r.proceso}, Acción: ${r.accionDecision}`).join('\n')
           : '(sin riesgos cargados todavía)');
-        const ctxContext = "CONTEXTO:\n" + initialContext.map(c => `- Factor: ${c.factorCritico}, Contexto: ${c.contexto}, Riesgo: ${c.riesgo}, Plan: ${c.planAccion}`).join('\n');
+        const contextoReal = await listarContexto().catch(() => []);
+        const ctxContext = "CONTEXTO:\n" + (contextoReal.length
+          ? contextoReal.map(c => `- Factor: ${c.factorCritico}, Contexto: ${c.contexto}, Riesgo: ${c.riesgo}, Plan: ${c.planAccion}`).join('\n')
+          : '(sin factores de contexto cargados)');
         const revContext = "REVISIONES POR LA DIRECCIÓN:\n" + mockReviews.map(m => `- Año: ${m.year}, Salidas/Mejoras: ${m.data.step4_salidas_mejoras}, Recursos: ${m.data.step4_salidas_recursos}`).join('\n');
         
         let allDocsText = "CONTENIDO DE LOS DOCUMENTOS DEL SISTEMA:\n";
