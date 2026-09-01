@@ -5,6 +5,7 @@ import { obtenerMetricaMensual, guardarMetricaMensual } from '../lib/metricsApi'
 import ComercialMetricsForms from '../components/ComercialMetricsForms';
 import AsistenciaMetricsForms from '../components/AsistenciaMetricsForms';
 import OperacionesMetricsForms from '../components/OperacionesMetricsForms';
+import CcmMetricsForms from '../components/CcmMetricsForms';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -362,9 +363,8 @@ const SectorMetrics = () => {
       case 'Gerencia de Operaciones':
       case 'Operaciones SPP': return 'operaciones_spp';
       case 'CCM':
-        return 'ccm';
       case 'CCM Gestión Tránsito':
-        return 'ccm_gestion';
+        return 'ccm_unificado';
       case 'Asistencia Vial':
       case 'Asistencia Vial Gestión':
       case 'Asistencia Vial 1° Aux':
@@ -443,8 +443,7 @@ const SectorMetrics = () => {
       <select className="form-control" value={activeForm} onChange={(e) => setActiveForm(e.target.value)} style={{ width: '350px' }}>
         <option value="comercial">Gerencia Comercial</option>
         <option value="operaciones_spp">Gerencia de Operaciones (SPP)</option>
-        <option value="ccm">Centro de Control y Monitoreo (Contingencias)</option>
-        <option value="ccm_gestion">Centro de Control y Monitoreo (Gestión Tránsito)</option>
+        <option value="ccm_unificado">Centro de Control y Monitoreo (CCM)</option>
         <option value="asistencia_vial">Asistencia Vial</option>
         <option value="mantenimiento">Ger. Mantenimiento-Taller Mecánico</option>
         <option value="rrhh">Gerencia de Recursos Humanos</option>
@@ -483,6 +482,15 @@ const SectorMetrics = () => {
     );
   }
 
+  if (activeForm === 'ccm_unificado') {
+    return (
+      <div>
+        {sgiSelector}
+        <CcmMetricsForms />
+      </div>
+    );
+  }
+
   return (
     <div className="module-container">
       <div className="module-header animate-fade-in">
@@ -500,12 +508,6 @@ const SectorMetrics = () => {
             <select className="form-control" value={activeForm} onChange={(e) => setActiveForm(e.target.value)} style={{ width: '350px' }}>
               <option value="comercial">Gerencia Comercial</option>
               <option value="operaciones_spp">Gerencia de Operaciones (SPP)</option>
-              <option value="ccm">Centro de Control y Monitoreo (Contingencias)</option>
-              <option value="ccm_gestion">Centro de Control y Monitoreo (Gestión Tránsito)</option>
-              <option value="av">Asistencia Vial (Factores)</option>
-              <option value="av_gestion">Asistencia Vial (Gestión AV1)</option>
-              <option value="av_aux1">Asistencia Vial (1° Auxilio)</option>
-              <option value="av_aux_mec">Asistencia Vial (Auxilio Mecánico)</option>
               <option value="mantenimiento">Ger. Mantenimiento-Taller Mecánico</option>
               <option value="rrhh">Gerencia de Recursos Humanos</option>
               <option value="compras">Gerencia de Compras</option>

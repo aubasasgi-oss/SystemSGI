@@ -6,6 +6,7 @@ import { obtenerMetricaMensual } from '../lib/metricsApi';
 import { listarComercialMetricsMultiples } from '../lib/comercialMetricsApi';
 import { listarAsistenciaMetricsMultiples } from '../lib/asistenciaMetricsApi';
 import { listarOperacionesMetrics } from '../lib/operacionesMetricsApi';
+import { listarCcmMetricsMultiples } from '../lib/ccmMetricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -121,19 +122,43 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'ccm') {
-      const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-      obtenerMetricaMensual('ccm_gestion', ccmAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => (mo[a.month]||0) - (mo[b.month]||0));
-          setCcmMetrics(sorted);
+      const MESES_CCM = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
+      const bucketPorMes = (rows) => {
+        const map = {};
+        rows.forEach(r => {
+          if (!r.fecha) return;
+          const d = new Date(r.fecha + 'T00:00:00');
+          if (d.getFullYear() !== ccmAnio) return;
+          const mes = MESES_CCM[d.getMonth()];
+          if (!map[mes]) map[mes] = [];
+          map[mes].push(r.data || {});
+        });
+        return map;
+      };
+
+      listarCcmMetricsMultiples(['contingencias', 'gestion_transito'])
+        .then(rows => {
+          const gestionBucket = bucketPorMes(rows.filter(r => r.tipo === 'gestion_transito'));
+          const contingBucket = bucketPorMes(rows.filter(r => r.tipo === 'contingencias'));
+
+          const gestionArr = Object.entries(gestionBucket).map(([month, entries]) => ({
+            month,
+            data: {
+              ccm_g1: { detectadas: sum(entries, 'detectadas'), reportadas: sum(entries, 'reportadas') },
+              ccm_g2: { hs_fuera_cam: sum(entries, 'hs_fuera_cam'), hs_totales_cam: sum(entries, 'hs_totales_cam') },
+              ccm_g3: { hs_fuera_pmv: sum(entries, 'hs_fuera_pmv'), hs_totales_pmv: sum(entries, 'hs_totales_pmv') },
+            },
+          }));
+          const contingArr = Object.entries(contingBucket).map(([month, entries]) => ({
+            month,
+            data: { ccm_conting: { liberacion_ok: sum(entries, 'liberacion_ok'), total_eventos: sum(entries, 'total_eventos') } },
+          }));
+
+          setCcmMetrics(gestionArr);
+          setCcmContingMetrics(contingArr);
         })
-        .catch(() => setCcmMetrics([]));
-      obtenerMetricaMensual('ccm', ccmAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => (mo[a.month]||0) - (mo[b.month]||0));
-          setCcmContingMetrics(sorted);
-        })
-        .catch(() => setCcmContingMetrics([]));
+        .catch(() => { setCcmMetrics([]); setCcmContingMetrics([]); });
     }
   }, [activeGerencia, ccmAnio]);
 
