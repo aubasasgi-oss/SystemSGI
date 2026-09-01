@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, FileText, AlertTriangle, Car, BarChart2, Monitor, Wrench, Phone, Briefcase, Users, Server, BookOpen, TrendingUp, Maximize, Minimize, Scale, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Line, LineChart, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import Papa from 'papaparse';
@@ -85,9 +85,13 @@ const Dashboard = () => {
   const [rrhhAnio, setRrhhAnio] = useState(new Date().getFullYear());
   const [rrhhMes, setRrhhMes] = useState(null);
 
+  const dashboardContentRef = useRef(null);
+
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
+      // Solo el panel del tablero (module-content), no el sidebar ni el
+      // encabezado de la app — por eso no se usa document.documentElement.
+      (dashboardContentRef.current || document.documentElement).requestFullscreen().catch(err => {
         console.error("Error attempting to enable fullscreen:", err);
       });
     } else if (document.exitFullscreen) {
@@ -2644,7 +2648,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="module-content">
+      <div className="module-content" ref={dashboardContentRef} style={{ backgroundColor: activeGerencia ? undefined : '#0f172a' }}>
         {!activeGerencia && renderPortal()}
         {activeGerencia === 'comercial' && renderComercial()}
         {activeGerencia === 'ccm' && renderCCM()}
