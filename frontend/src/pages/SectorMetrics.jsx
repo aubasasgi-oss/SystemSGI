@@ -8,6 +8,9 @@ import OperacionesMetricsForms from '../components/OperacionesMetricsForms';
 import CcmMetricsForms from '../components/CcmMetricsForms';
 import MantenimientoMetricsForms from '../components/MantenimientoMetricsForms';
 import RrhhMetricsForms from '../components/RrhhMetricsForms';
+import LegalesMetricsForms from '../components/LegalesMetricsForms';
+import SistemasMetricsForms from '../components/SistemasMetricsForms';
+import InstitucionalesMetricsForms from '../components/InstitucionalesMetricsForms';
 
 const kpisBySector = {
   operaciones_spp: {
@@ -511,6 +514,33 @@ const SectorMetrics = () => {
     );
   }
 
+  if (activeForm === 'legales') {
+    return (
+      <div>
+        {sgiSelector}
+        <LegalesMetricsForms />
+      </div>
+    );
+  }
+
+  if (activeForm === 'sistemas') {
+    return (
+      <div>
+        {sgiSelector}
+        <SistemasMetricsForms />
+      </div>
+    );
+  }
+
+  if (activeForm === 'institucionales') {
+    return (
+      <div>
+        {sgiSelector}
+        <InstitucionalesMetricsForms />
+      </div>
+    );
+  }
+
   return (
     <div className="module-container">
       <div className="module-header animate-fade-in">
@@ -529,9 +559,6 @@ const SectorMetrics = () => {
               <option value="comercial">Gerencia Comercial</option>
               <option value="operaciones_spp">Gerencia de Operaciones (SPP)</option>
               <option value="compras">Gerencia de Compras</option>
-              <option value="legales">Gerencia de Asuntos Legales</option>
-              <option value="sistemas">Gerencia de Tecnología y Sistemas</option>
-              <option value="institucionales">SubGerencia Relaciones Institucionales</option>
             </select>
           </div>
         )}

@@ -9,6 +9,9 @@ import { listarOperacionesMetrics } from '../lib/operacionesMetricsApi';
 import { listarCcmMetricsMultiples } from '../lib/ccmMetricsApi';
 import { listarMantenimientoMetricsMultiples } from '../lib/mantenimientoMetricsApi';
 import { listarRrhhMetricsMultiples } from '../lib/rrhhMetricsApi';
+import { listarLegalesMetricsMultiples } from '../lib/legalesMetricsApi';
+import { listarSistemasMetricsMultiples } from '../lib/sistemasMetricsApi';
+import { listarInstitucionalesMetrics } from '../lib/institucionalesMetricsApi';
 
 // Datos Mock
 const dataOperaciones = [
@@ -203,13 +206,24 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'institucionales') {
-      obtenerMetricaMensual('institucionales', institucionalesAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
+      const MESES_INST = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
+      listarInstitucionalesMetrics()
+        .then(rows => {
+          const map = {};
+          rows.forEach(r => {
+            if (!r.fecha) return;
+            const d = new Date(r.fecha + 'T00:00:00');
+            if (d.getFullYear() !== institucionalesAnio) return;
+            const mes = MESES_INST[d.getMonth()];
+            if (!map[mes]) map[mes] = [];
+            map[mes].push(r.data || {});
           });
-          setInstitucionalesMetrics(sorted);
+          const arr = Object.entries(map).map(([month, entries]) => ({
+            month,
+            data: { inst1: { num: sum(entries, 'num'), den: sum(entries, 'den') } },
+          }));
+          setInstitucionalesMetrics(arr);
         })
         .catch(() => setInstitucionalesMetrics([]));
     }
@@ -217,13 +231,37 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'legales') {
-      obtenerMetricaMensual('legales', legalesAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
+      const MESES_LEG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
+      const bucketPorMes = (rows) => {
+        const map = {};
+        rows.forEach(r => {
+          if (!r.fecha) return;
+          const d = new Date(r.fecha + 'T00:00:00');
+          if (d.getFullYear() !== legalesAnio) return;
+          const mes = MESES_LEG[d.getMonth()];
+          if (!map[mes]) map[mes] = [];
+          map[mes].push(r.data || {});
+        });
+        return map;
+      };
+      listarLegalesMetricsMultiples(['respuestas_gc', 'matriz_legal'])
+        .then(rows => {
+          const respBucket = bucketPorMes(rows.filter(r => r.tipo === 'respuestas_gc'));
+          const matrizBucket = bucketPorMes(rows.filter(r => r.tipo === 'matriz_legal'));
+          const allMonths = new Set([...Object.keys(respBucket), ...Object.keys(matrizBucket)]);
+          const arr = Array.from(allMonths).map(month => {
+            const matrizEntries = matrizBucket[month] || [];
+            const ultimaMatriz = matrizEntries.length ? matrizEntries[matrizEntries.length - 1].cumplimiento_matriz : undefined;
+            return {
+              month,
+              data: {
+                leg_respuestas: { resp_comunicadas: sum(respBucket[month] || [], 'resp_comunicadas'), resp_solicitadas: sum(respBucket[month] || [], 'resp_solicitadas') },
+                leg_matriz: { cumplimiento_matriz: ultimaMatriz },
+              },
+            };
           });
-          setLegalesMetrics(sorted);
+          setLegalesMetrics(arr);
         })
         .catch(() => setLegalesMetrics([]));
     }
@@ -231,13 +269,43 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (activeGerencia === 'sistemas') {
-      obtenerMetricaMensual('sistemas', sistemasAnio)
-        .then(d => {
-          const sorted = (Array.isArray(d) ? d : []).sort((a, b) => {
-            const mo = { Enero:1,Febrero:2,Marzo:3,Abril:4,Mayo:5,Junio:6,Julio:7,Agosto:8,Septiembre:9,Octubre:10,Noviembre:11,Diciembre:12 };
-            return (mo[a.month]||0) - (mo[b.month]||0);
+      const MESES_SIS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
+      const bucketPorMes = (rows) => {
+        const map = {};
+        rows.forEach(r => {
+          if (!r.fecha) return;
+          const d = new Date(r.fecha + 'T00:00:00');
+          if (d.getFullYear() !== sistemasAnio) return;
+          const mes = MESES_SIS[d.getMonth()];
+          if (!map[mes]) map[mes] = [];
+          map[mes].push(r.data || {});
+        });
+        return map;
+      };
+      listarSistemasMetricsMultiples(['pmp', 'tickets'])
+        .then(rows => {
+          const pmpBucket = bucketPorMes(rows.filter(r => r.tipo === 'pmp'));
+          const ticketsBucket = bucketPorMes(rows.filter(r => r.tipo === 'tickets'));
+          const allMonths = new Set([...Object.keys(pmpBucket), ...Object.keys(ticketsBucket)]);
+          const arr = Array.from(allMonths).map(month => {
+            const pmpEntries = pmpBucket[month] || [];
+            return {
+              month,
+              data: {
+                sis_pmp: {
+                  sitio: pmpEntries[0]?.sitio,
+                  prev_realizados: sum(pmpEntries, 'prev_realizados'),
+                  prev_planificados: sum(pmpEntries, 'prev_planificados'),
+                },
+                sis_tickets: {
+                  tickets_realizados: sum(ticketsBucket[month] || [], 'tickets_realizados'),
+                  tickets_solicitados: sum(ticketsBucket[month] || [], 'tickets_solicitados'),
+                },
+              },
+            };
           });
-          setSistemasMetrics(sorted);
+          setSistemasMetrics(arr);
         })
         .catch(() => setSistemasMetrics([]));
     }
