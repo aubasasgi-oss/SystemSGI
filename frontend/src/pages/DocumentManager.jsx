@@ -1139,9 +1139,9 @@ export default function DocumentManager() {
       )}
 
       {/* Modal Visor PDF/HTML */}
-      {viewingPdf && selectedDoc && (
+      {viewingPdf && selectedDoc && createPortal(
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="glass animate-fade-in" style={{ width: '90%', height: '90vh', display: 'flex', flexDirection: 'column', backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden' }}>
+          <div className="glass animate-fade-in" style={{ width: '95%', height: '95vh', display: 'flex', flexDirection: 'column', backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden' }}>
             <div style={{ padding: '16px 24px', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
               <h3 style={{ margin: 0, color: '#334155' }}>
                 Visor: {selectedDoc.code} - {selectedDoc.title} ({selectedDoc.version})
@@ -1178,7 +1178,8 @@ export default function DocumentManager() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Modal Subir Firma Imagen */}
