@@ -1,43 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Edit2, Lock, ChevronRight, ChevronLeft, Save, Eye, Printer, CheckSquare } from 'lucide-react';
-
-export const mockReviews = [
-  {
-    id: 'RD-2026',
-    year: '2025-2026',
-    status: 'Aprobada',
-    date: '2026-04-30',
-    participants: 'Gerente General, SGI y Todas las Gerencias',
-    data: {
-      step1_acciones: 'Se verifica el estado de las 17 acciones de mejora surgidas de la RD N°1 2025. La totalidad fue cerrada exitosamente.',
-      step1_contexto: 'Político: Elecciones 2027. Económico: Plan de Inversiones $363.614M ARS. Tecnológico: Free Flow.',
-      step2_satisfaccion: 'Funcionamiento TelePASE 62,38%. Controles alcoholemia 92,04%. Oportunidad en señalización vial.',
-      step2_objetivos: 'Atención telefónica 55,44% vs 75%. Tiempo respuesta SVIA 100%. Reclamos Bernal 2,05 c/100k.',
-      step2_procesos: '0 víctimas fatales (ISO 39001). TelePASE 89% participación. Resiliencia ante fallas CCM.',
-      step2_ncs: 'No se han generado nuevas No Conformidades en 2026. Arrastre de 5 observaciones IRAM 2025 (Samborombón, Taller, Base Hudson).',
-      step2_seguimiento: 'La disponibilidad de PMV es del 88,54% y la liberación de calzada del 84,47%.',
-      step2_auditorias: '167 puntos evaluados. 160 conformes. 0 NC. 7 Observaciones.',
-      step2_proveedores: '45 proveedores críticos evaluados con nota promedio ≥4,2.',
-      step3_recursos: 'Asignación para Free Flow Dock Sud. Consolidación SharePoint SGI. Incorporación Coordinador Auditoría.',
-      step3_riesgos: 'De 14 procesos, 11 sin materialización. 3 con acciones correctivas gestionadas con eficacia (Taller, CCM).',
-      step3_mejoras: 'Implementar nuevo protocolo de triaje en CCM y reforzar cartelería.',
-      step4_salidas_mejoras: 'Plan de reconversión laboral omnicanal (Q3 2026). Regularizar calibración en Taller (Q2 2026).',
-      step4_salidas_cambios: 'El SGI requiere adaptación del alcance para incluir el sistema Free Flow en Dock Sud.',
-      step4_salidas_recursos: 'Asignar presupuesto extraordinario para infraestructura en Taller y sistemas de contingencia.'
-    }
-  }
-];
+import { listarManagementReviews, guardarManagementReview } from '../lib/managementReviewApi';
 
 export default function ManagementReview() {
   const { userRole } = useAuth();
   const isSGI = userRole === 'SGI';
-  
+
   const [activeTab, setActiveTab] = useState('actas'); // 'actas' or 'checklist'
-  const [reviews, setReviews] = useState(mockReviews);
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list', 'form', 'view'
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedReview, setSelectedReview] = useState(null);
+
+  const cargarReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const data = await listarManagementReviews();
+      setReviews(data);
+    } catch (err) {
+      console.error('Error al cargar revisiones por la dirección:', err);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarReviews();
+  }, []);
 
   // Standalone Checklist State
   const [checklistData, setChecklistData] = useState({
@@ -80,16 +72,18 @@ export default function ManagementReview() {
     }
   };
 
-  const handleSave = () => {
-    if (selectedReview.status === 'Borrador') {
-      const existing = reviews.find(r => r.id === selectedReview.id);
-      if (existing) {
-        setReviews(reviews.map(r => r.id === selectedReview.id ? selectedReview : r));
-      } else {
-        setReviews([selectedReview, ...reviews]);
-      }
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await guardarManagementReview(selectedReview);
+      await cargarReviews();
+      setViewMode('list');
+    } catch (err) {
+      console.error('Error al guardar la revisión por la dirección:', err);
+      alert('No se pudo guardar la revisión. Intente nuevamente.');
+    } finally {
+      setSaving(false);
     }
-    setViewMode('list');
   };
 
   const updateData = (field, value) => {
@@ -284,7 +278,11 @@ export default function ManagementReview() {
             </tr>
           </thead>
           <tbody>
-            {reviews.map(rev => (
+            {loadingReviews ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Cargando revisiones...</td></tr>
+            ) : reviews.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: '#64748b' }}>Aún no hay actas de revisión cargadas.</td></tr>
+            ) : reviews.map(rev => (
               <tr key={rev.id}>
                 <td style={{fontWeight: 'bold', color: 'var(--accent-color)'}}>{rev.id}</td>
                 <td>{rev.year}</td>
@@ -410,8 +408,8 @@ export default function ManagementReview() {
               Siguiente <ChevronRight size={18} />
             </button>
           ) : (
-            <button className="btn btn-primary" onClick={handleSave} style={{ backgroundColor: '#16a34a' }}>
-              <Save size={18} /> Guardar Revisión
+            <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ backgroundColor: '#16a34a' }}>
+              <Save size={18} /> {saving ? 'Guardando...' : 'Guardar Revisión'}
             </button>
           )}
         </div>

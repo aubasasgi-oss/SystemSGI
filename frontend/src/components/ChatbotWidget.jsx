@@ -7,7 +7,7 @@ import { createWorker } from 'tesseract.js';
 import { listarIndicadores } from '../lib/indicadoresApi';
 import { listarRiesgos } from '../lib/risksApi';
 import { listarContexto } from '../lib/contextoApi';
-import { mockReviews } from '../pages/ManagementReview';
+import { listarManagementReviews } from '../lib/managementReviewApi';
 
 // Si una página trae muy poco texto "real" (menos de este umbral), suele
 // significar que el contenido es una imagen/mapa/plano sin texto embebido —
@@ -196,7 +196,10 @@ const ChatbotWidget = () => {
         const ctxContext = "CONTEXTO:\n" + (contextoReal.length
           ? contextoReal.map(c => `- Factor: ${c.factorCritico}, Contexto: ${c.contexto}, Riesgo: ${c.riesgo}, Plan: ${c.planAccion}`).join('\n')
           : '(sin factores de contexto cargados)');
-        const revContext = "REVISIONES POR LA DIRECCIÓN:\n" + mockReviews.map(m => `- Año: ${m.year}, Salidas/Mejoras: ${m.data.step4_salidas_mejoras}, Recursos: ${m.data.step4_salidas_recursos}`).join('\n');
+        const reviewsReales = await listarManagementReviews().catch(() => []);
+        const revContext = "REVISIONES POR LA DIRECCIÓN:\n" + (reviewsReales.length
+          ? reviewsReales.map(m => `- Año: ${m.year}, Salidas/Mejoras: ${m.data.step4_salidas_mejoras}, Recursos: ${m.data.step4_salidas_recursos}`).join('\n')
+          : '(sin revisiones por la dirección cargadas)');
         
         let allDocsText = "CONTENIDO DE LOS DOCUMENTOS DEL SISTEMA:\n";
         for (const doc of documents) {
