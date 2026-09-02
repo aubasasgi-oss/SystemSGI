@@ -662,12 +662,16 @@ export default function DocumentManager() {
   const visibleDocuments = documents.filter(doc => {
     if (!currentFolder) return false;
     if (currentFolder === 'Archivo Obsoleto') return doc.status === 'Obsoleto';
-    
+
+    // Fuera del Archivo Obsoleto, los documentos obsoletos no se muestran —
+    // solo viven en esa carpeta especial.
+    if (doc.status === 'Obsoleto') return false;
+
     // Si estamos dentro de una subcarpeta
     if (currentSubFolder) {
       return doc.folder_name === currentSubFolder;
     }
-    
+
     // Si estamos en una carpeta principal SIN subcarpetas
     if (!SUB_FOLDERS[currentFolder]) {
       return doc.folder_name === currentFolder;
