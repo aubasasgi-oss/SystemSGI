@@ -29,6 +29,9 @@ const IMPACTO_OPCIONES = [
   { value: 5, label: 'Extremo' },
 ];
 
+const DECISION_RIESGO_OPCIONES = ["MITIGAR", "ACEPTAR", "EVITAR", "TRANSFERIR"];
+const DECISION_OPORTUNIDAD_OPCIONES = ["ADOPTAR", "EXPLORAR", "DESCARTAR"];
+
 // Bloque de lectura para la vista de detalle (clic en una fila): agrupa
 // campos relacionados en secciones con títulos, en vez del formulario de
 // edición con inputs, para que se lea como una ficha y no como un form vacío.
@@ -186,7 +189,7 @@ export default function Risks() {
     doc.text(`Fecha de exportación: ${new Date().toLocaleDateString()} | Sector: ${filterSector}`, 14, 30);
 
     const tableColumn = [
-      "ID", "Riesgo", "Causas", "Consecuencias", "Inherente (PxI)", 
+      "ID", "Tipo", "Riesgo", "Causas", "Consecuencias", "Inherente (PxI)",
       "Decisión", "Plan de Acción", "Resp.", "Residual (PxI)", "Reevaluar", "¿Ocurrió?", "Eficacia"
     ];
     const tableRows = [];
@@ -194,9 +197,10 @@ export default function Risks() {
     filteredRisks.forEach(item => {
       const inh = item.probabilidad * item.impacto;
       const res = item.probabilidadResidual * item.impactoResidual;
-      
+
       const itemData = [
         item.id,
+        item.tipo || 'Riesgo',
         item.riesgo,
         item.causas,
         item.consecuencias,
@@ -221,12 +225,12 @@ export default function Risks() {
       headStyles: { fillColor: [0, 51, 160], textColor: [255, 255, 255] },
       alternateRowStyles: { fillColor: [241, 245, 249] },
       columnStyles: {
-        4: { fontStyle: 'bold', halign: 'center' }, // Inherente
-        8: { fontStyle: 'bold', halign: 'center' }, // Residual
-        9: { fontStyle: 'bold', halign: 'center' }, // Reevaluar
+        5: { fontStyle: 'bold', halign: 'center' }, // Inherente
+        9: { fontStyle: 'bold', halign: 'center' }, // Residual
+        10: { fontStyle: 'bold', halign: 'center' }, // Reevaluar
       },
       didParseCell: function (data) {
-        if (data.section === 'body' && data.column.index === 9) {
+        if (data.section === 'body' && data.column.index === 10) {
           if (data.cell.raw === 'REEVALUAR') { data.cell.styles.textColor = [239, 68, 68]; }
           else { data.cell.styles.textColor = [34, 197, 94]; }
         }
@@ -398,6 +402,7 @@ export default function Risks() {
                     className="btn btn-primary"
                     onClick={() => {
                       setSelectedRisk({
+                        tipo: 'Riesgo',
                         riesgo: '', causas: '', consecuencias: '', proceso: '', sector: userRole !== 'SGI' ? userSector : '', concesion: '',
                         probabilidad: 1, impacto: 1, decision: 'MITIGAR', accionDecision: '', planAccion: '', fechaImplementacion: '', responsable: '',
                         probabilidadResidual: 1, impactoResidual: 1, ocurrio: '', eficacia: '', motivoEficaz: '', fechaEficacia: '', responsableEficacia: '', año: filterYear
@@ -458,6 +463,7 @@ export default function Risks() {
                   <thead>
                     <tr>
                       <th style={{width: '60px'}}>ID</th>
+                      <th style={{textAlign:'center', width: '90px'}}>Tipo</th>
                       <th style={{width: '180px'}}>Riesgo</th>
                       <th style={{width: '180px'}}>Causas / Consecuencias</th>
                       <th style={{width: '140px'}}>Proceso / Sector / Concesión</th>
@@ -474,6 +480,9 @@ export default function Risks() {
                     {filteredRisks.map(r => (
                       <tr key={r.id} onClick={() => { setSelectedRisk(r); setViewMode('detail'); }} style={{cursor: 'pointer'}}>
                         <td style={{fontWeight: 'bold', color: 'var(--accent-color)'}}>{r.id}</td>
+                        <td style={{textAlign:'center'}}>
+                          {r.tipo === 'Oportunidad' ? <span className="badge" style={{backgroundColor: '#f0fdf4', color: '#16a34a'}}>Oportunidad</span> : <span className="badge" style={{backgroundColor: '#eff6ff', color: '#1d4ed8'}}>Riesgo</span>}
+                        </td>
                         <td><span style={{maxWidth: '180px', WebkitLineClamp: 3, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.riesgo}>{r.riesgo}</span></td>
                         <td>
                           <div style={{fontSize: '12px', color: '#475569', marginBottom: '4px', maxWidth: '180px', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', whiteSpace: 'normal', overflow: 'hidden', textOverflow: 'ellipsis'}} title={r.causas}><strong>Causas:</strong> {r.causas}</div>
@@ -520,14 +529,14 @@ export default function Risks() {
                     ))}
                     {!loadingRisks && filteredRisks.length === 0 && (
                       <tr>
-                        <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                        <td colSpan="12" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                           No se encontraron riesgos para los filtros seleccionados.
                         </td>
                       </tr>
                     )}
                     {loadingRisks && (
                       <tr>
-                        <td colSpan="11" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                        <td colSpan="12" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                           Cargando riesgos...
                         </td>
                       </tr>
@@ -553,7 +562,23 @@ export default function Risks() {
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label">Riesgo (¿Qué puede pasar?)</label>
+                  <label className="form-label">Tipo (Cláusula 6.1.2 Riesgos / 6.1.3 Oportunidades - Borrador ISO 9001:2025)</label>
+                  <select
+                    className="form-control"
+                    value={selectedRisk?.tipo || 'Riesgo'}
+                    onChange={e => {
+                      const tipo = e.target.value;
+                      const decisionPorDefecto = tipo === 'Oportunidad' ? DECISION_OPORTUNIDAD_OPCIONES[0] : DECISION_RIESGO_OPCIONES[0];
+                      setSelectedRisk({ ...selectedRisk, tipo, decision: decisionPorDefecto });
+                    }}
+                  >
+                    <option value="Riesgo">Riesgo</option>
+                    <option value="Oportunidad">Oportunidad</option>
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label">{selectedRisk?.tipo === 'Oportunidad' ? 'Oportunidad (¿Qué se podría aprovechar?)' : 'Riesgo (¿Qué puede pasar?)'}</label>
                   <textarea className="form-control" rows="2" value={selectedRisk?.riesgo} onChange={e => setSelectedRisk({...selectedRisk, riesgo: e.target.value})} required></textarea>
                 </div>
                 <div>
@@ -617,10 +642,7 @@ export default function Risks() {
                 <div>
                   <label className="form-label">Decisión Estratégica</label>
                   <select className="form-control" value={selectedRisk?.decision} onChange={e => setSelectedRisk({...selectedRisk, decision: e.target.value})} required>
-                    <option value="MITIGAR">MITIGAR</option>
-                    <option value="ACEPTAR">ACEPTAR</option>
-                    <option value="EVITAR">EVITAR</option>
-                    <option value="TRANSFERIR">TRANSFERIR</option>
+                    {(selectedRisk?.tipo === 'Oportunidad' ? DECISION_OPORTUNIDAD_OPCIONES : DECISION_RIESGO_OPCIONES).map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
@@ -728,6 +750,7 @@ export default function Risks() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                     <h3 style={{ margin: 0, color: 'var(--accent-color)' }}>{selectedRisk.id}</h3>
                     <span className="badge" style={{ backgroundColor: '#e2e8f0', color: '#475569' }}>Año {selectedRisk.año}</span>
+                    {selectedRisk.tipo === 'Oportunidad' ? <span className="badge" style={{backgroundColor: '#f0fdf4', color: '#16a34a'}}>Oportunidad</span> : <span className="badge" style={{backgroundColor: '#eff6ff', color: '#1d4ed8'}}>Riesgo</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {selectedRisk.proceso && <span className="badge" style={{ backgroundColor: '#f1f5f9', color: '#475569' }}>{selectedRisk.proceso}</span>}
@@ -745,8 +768,8 @@ export default function Risks() {
                 </div>
               </div>
 
-              <DetailSeccion titulo="Riesgo">
-                <DetailCampo label="¿Qué puede pasar?" valor={selectedRisk.riesgo} ancho="full" />
+              <DetailSeccion titulo={selectedRisk.tipo === 'Oportunidad' ? 'Oportunidad' : 'Riesgo'}>
+                <DetailCampo label={selectedRisk.tipo === 'Oportunidad' ? '¿Qué se podría aprovechar?' : '¿Qué puede pasar?'} valor={selectedRisk.riesgo} ancho="full" />
                 <DetailCampo label="Causas (¿Por qué?)" valor={selectedRisk.causas} />
                 <DetailCampo label="Consecuencias (¿Impacto?)" valor={selectedRisk.consecuencias} />
               </DetailSeccion>

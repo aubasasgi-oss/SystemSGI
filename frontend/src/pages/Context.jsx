@@ -73,7 +73,7 @@ export default function Context() {
     doc.setTextColor(100);
     doc.text(`Fecha de exportación: ${new Date().toLocaleDateString()}`, 14, 30);
 
-    const tableColumn = ["Factor Crítico", "Contexto", "Riesgo/Oportunidad", "Proceso", "Partes Interesadas", "PxI", "Nivel", "Acción"];
+    const tableColumn = ["Factor Crítico", "Contexto", "Riesgo/Oportunidad", "Proceso", "Partes Interesadas", "PxI", "Nivel", "Cambio Climático", "Acción"];
     const tableRows = [];
 
     filteredItems.forEach(item => {
@@ -91,6 +91,7 @@ export default function Context() {
         item.partesInteresadas,
         `${item.probabilidad}x${item.impacto}=${pxi}`,
         nivelTexto,
+        item.cambioClimatico || '-',
         item.planAccion
       ];
       tableRows.push(itemData);
@@ -137,7 +138,8 @@ export default function Context() {
               onClick={() => {
                 setSelectedItem({
                   factorCritico: '', contexto: 'Externo', riesgo: '', proceso: '', partesInteresadas: '',
-                  probabilidad: 1, impacto: 1, planAccion: '', responsable: '', ocurrio: '', fechaOcurrencia: '', eficacia: '', respMedicion: '', fechaMedicion: '', año: new Date().getFullYear()
+                  probabilidad: 1, impacto: 1, planAccion: '', responsable: '', ocurrio: '', fechaOcurrencia: '', eficacia: '', respMedicion: '', fechaMedicion: '', año: new Date().getFullYear(),
+                  cambioClimatico: '', cambioClimaticoJustif: ''
                 });
                 setViewMode('form');
               }}
@@ -183,6 +185,7 @@ export default function Context() {
                   <th style={{textAlign:'center'}}>Prob</th>
                   <th style={{textAlign:'center'}}>Imp</th>
                   <th style={{textAlign:'center'}}>Nivel</th>
+                  <th style={{textAlign:'center'}}>Cambio Climático</th>
                   <th>Plan de Acción</th>
                   <th>Responsable</th>
                   <th style={{textAlign:'center'}}>¿Ocurrió?</th>
@@ -201,6 +204,10 @@ export default function Context() {
                     <td style={{textAlign:'center', fontWeight:'bold'}}>{r.probabilidad}</td>
                     <td style={{textAlign:'center', fontWeight:'bold'}}>{r.impacto}</td>
                     <td style={{textAlign:'center'}}>{getNivelBadge(r.probabilidad, r.impacto)}</td>
+                    <td style={{textAlign:'center'}}>
+                      {r.cambioClimatico === 'Sí' ? <span className="badge" style={{backgroundColor: '#fff7ed', color: '#c2410c'}} title={r.cambioClimaticoJustif}>Relevante</span> :
+                       r.cambioClimatico === 'No' ? <span className="badge" style={{backgroundColor: '#f1f5f9', color: '#64748b'}}>No relevante</span> : '-'}
+                    </td>
                     <td><span className="truncate" style={{maxWidth: '150px'}} title={r.planAccion}>{r.planAccion}</span></td>
                     <td>{r.responsable}</td>
                     <td style={{textAlign:'center'}}>
@@ -229,14 +236,14 @@ export default function Context() {
                 ))}
                 {!loadingItems && filteredItems.length === 0 && (
                   <tr>
-                    <td colSpan="13" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                    <td colSpan="14" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                       No se encontraron factores en el contexto.
                     </td>
                   </tr>
                 )}
                 {loadingItems && (
                   <tr>
-                    <td colSpan="13" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                    <td colSpan="14" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                       Cargando...
                     </td>
                   </tr>
@@ -280,6 +287,22 @@ export default function Context() {
             <div>
               <label className="form-label">Partes Interesadas (ISO 4.2)</label>
               <input type="text" className="form-control" value={selectedItem?.partesInteresadas} onChange={e => setSelectedItem({...selectedItem, partesInteresadas: e.target.value})} placeholder="Ej: Usuarios, Proveedores, Estado..." required />
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <h4 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '16px', marginTop: '16px', color: '#64748b' }}>Cambio Climático (Borrador ISO 9001:2025 - Cláusula 4.1)</h4>
+            </div>
+            <div>
+              <label className="form-label">¿El cambio climático es un tema relevante para este factor?</label>
+              <select className="form-control" value={selectedItem?.cambioClimatico || ''} onChange={e => setSelectedItem({...selectedItem, cambioClimatico: e.target.value})}>
+                <option value="">Sin evaluar</option>
+                <option value="Sí">Sí, es relevante</option>
+                <option value="No">No es relevante</option>
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Justificación</label>
+              <input type="text" className="form-control" value={selectedItem?.cambioClimaticoJustif || ''} onChange={e => setSelectedItem({...selectedItem, cambioClimaticoJustif: e.target.value})} placeholder="Ej: afecta la disponibilidad de vías por eventos climáticos extremos..." disabled={!selectedItem?.cambioClimatico} />
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
