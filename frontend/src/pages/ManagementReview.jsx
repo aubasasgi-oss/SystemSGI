@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Edit2, Lock, ChevronRight, ChevronLeft, Save, Eye, Printer, CheckSquare } from 'lucide-react';
+import { Plus, Edit2, Lock, ChevronRight, ChevronLeft, Save, Eye, Printer, Users } from 'lucide-react';
 import { listarManagementReviews, guardarManagementReview } from '../lib/managementReviewApi';
+import { listarContexto } from '../lib/contextoApi';
 
 export default function ManagementReview() {
   const { userRole } = useAuth();
   const isSGI = userRole === 'SGI';
 
-  const [activeTab, setActiveTab] = useState('actas'); // 'actas' or 'checklist'
+  const [activeTab, setActiveTab] = useState('actas'); // 'actas' o 'partes'
   const [reviews, setReviews] = useState([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,17 +32,56 @@ export default function ManagementReview() {
     cargarReviews();
   }, []);
 
-  // Standalone Checklist State
+  // Partes Interesadas: se traen automáticamente del Análisis de Contexto (PAU/01)
+  const [partesData, setPartesData] = useState([]); // [{ nombre, riesgos: [{id, riesgo, factorCritico, proceso, probabilidad, impacto}] }]
+  const [loadingPartes, setLoadingPartes] = useState(false);
   const [checklistData, setChecklistData] = useState({
     year: `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`,
-    sindicato: false,
-    ministerio: false,
-    municipios: false,
-    otros: false,
-    otrosDetalle: '',
+    verificadas: {}, // { [nombreParteInteresada]: true }
     firmaJSGI: ''
   });
   const [checklistError, setChecklistError] = useState('');
+
+  // Agrupa los factores del Análisis de Contexto por parte interesada.
+  // El campo partesInteresadas puede traer varias separadas por coma.
+  const agruparPorParteInteresada = (items) => {
+    const mapa = new Map();
+    (items || []).forEach(it => {
+      const partes = String(it.partesInteresadas || '')
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean);
+      partes.forEach(nombre => {
+        if (!mapa.has(nombre)) mapa.set(nombre, { nombre, riesgos: [] });
+        mapa.get(nombre).riesgos.push({
+          id: it.id,
+          riesgo: it.riesgo,
+          factorCritico: it.factorCritico,
+          proceso: it.proceso,
+          probabilidad: Number(it.probabilidad) || 0,
+          impacto: Number(it.impacto) || 0,
+        });
+      });
+    });
+    return [...mapa.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  };
+
+  const getNivelBadge = (p, i) => {
+    const n = (Number(p) || 0) * (Number(i) || 0);
+    if (n >= 15) return <span className="badge" style={{backgroundColor: '#fef2f2', color: '#ef4444'}}>🔴 {n} (Muy Alto)</span>;
+    if (n >= 10) return <span className="badge" style={{backgroundColor: '#fff7ed', color: '#f97316'}}>🟠 {n} (Alto)</span>;
+    if (n >= 6) return <span className="badge" style={{backgroundColor: '#fefce8', color: '#eab308'}}>🟡 {n} (Medio)</span>;
+    return <span className="badge" style={{backgroundColor: '#f0fdf4', color: '#8dc63f'}}>🟢 {n} (Bajo)</span>;
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'partes') return;
+    setLoadingPartes(true);
+    listarContexto()
+      .then(items => setPartesData(agruparPorParteInteresada(items)))
+      .catch(err => { console.error('Error al cargar partes interesadas del contexto:', err); setPartesData([]); })
+      .finally(() => setLoadingPartes(false));
+  }, [activeTab]);
 
   const handleStartNew = () => {
     setSelectedReview({
@@ -94,8 +134,13 @@ export default function ManagementReview() {
   };
 
   const validateAndPrintChecklist = () => {
-    if (!checklistData.sindicato || !checklistData.ministerio || !checklistData.municipios) {
-      setChecklistError('Debe verificar la retroalimentación de Sindicato, Ministerio y Municipios obligatoriamente antes de imprimir el anexo oficial.');
+    if (partesData.length === 0) {
+      setChecklistError('No hay partes interesadas cargadas en el Análisis de Contexto para verificar. Cargalas primero en Contexto (Estratégico).');
+      return;
+    }
+    const pendientes = partesData.filter(p => !checklistData.verificadas[p.nombre]);
+    if (pendientes.length > 0) {
+      setChecklistError(`Debe verificar la retroalimentación de todas las partes interesadas (${pendientes.length} pendiente(s): ${pendientes.map(p => p.nombre).join(', ')}) antes de imprimir el anexo oficial.`);
       return;
     }
     if (!checklistData.firmaJSGI) {
@@ -125,33 +170,33 @@ export default function ManagementReview() {
         Actas de Revisión por la Dirección
       </button>
       <button 
-        onClick={() => { setActiveTab('checklist'); setViewMode('list'); }}
+        onClick={() => { setActiveTab('partes'); setViewMode('list'); }}
         style={{
           padding: '12px 24px',
-          backgroundColor: activeTab === 'checklist' ? 'white' : 'transparent',
-          border: activeTab === 'checklist' ? '1px solid #e2e8f0' : 'none',
-          borderBottom: activeTab === 'checklist' ? '1px solid white' : 'none',
+          backgroundColor: activeTab === 'partes' ? 'white' : 'transparent',
+          border: activeTab === 'partes' ? '1px solid #e2e8f0' : 'none',
+          borderBottom: activeTab === 'partes' ? '1px solid white' : 'none',
           marginBottom: '-1px',
           borderRadius: '8px 8px 0 0',
-          fontWeight: activeTab === 'checklist' ? 'bold' : 'normal',
-          color: activeTab === 'checklist' ? '#0f172a' : '#64748b',
+          fontWeight: activeTab === 'partes' ? 'bold' : 'normal',
+          color: activeTab === 'partes' ? '#0f172a' : '#64748b',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: '8px'
         }}
       >
-        <CheckSquare size={18} /> Checklist Anexo IRAM
+        <Users size={18} /> Partes Interesadas
       </button>
     </div>
   );
 
-  const renderChecklistTab = () => (
+  const renderPartesTab = () => (
     <div className="animate-fade-in printable-doc">
       <div className="no-print module-header">
         <div>
-          <h2>Checklist de Verificación de Entradas (PAU 09 Anexo)</h2>
-          <p>Documento obligatorio previo a la Revisión por la Dirección para certificar la consideración de Partes Interesadas Externas (Obs. IRAM 83).</p>
+          <h2>Partes Interesadas (Automático)</h2>
+          <p>Partes interesadas y riesgos medidos traídos automáticamente del Análisis de Contexto (PAU/01) — Requisito 9.3.2 c.1.</p>
         </div>
         <button className="btn btn-primary" onClick={validateAndPrintChecklist}>
           <Printer size={18}/> Imprimir Anexo
@@ -174,53 +219,74 @@ export default function ManagementReview() {
         </p>
 
         <p style={{marginBottom: '24px', fontSize: '14px', lineHeight: '1.6'}}>
-          Se certifica por medio del presente anexo que, previo a la formalización del acta de Revisión por la Dirección correspondiente, se ha consolidado y evaluado formalmente la retroalimentación de las siguientes partes interesadas externas (Requisito 9.3.2 c.1):
+          Se certifica por medio del presente anexo que, previo a la formalización del acta de Revisión por la Dirección correspondiente, se ha consolidado y evaluado formalmente la retroalimentación de las siguientes partes interesadas externas (Requisito 9.3.2 c.1), según surgen del Análisis de Contexto vigente:
         </p>
-        
-        <div className="no-print" style={{backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '24px', marginBottom: '32px'}}>
-          <label style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', cursor: 'pointer'}}>
-            <input type="checkbox" style={{width: '20px', height: '20px'}} checked={checklistData.sindicato} onChange={(e) => setChecklistData({...checklistData, sindicato: e.target.checked})} />
-            <span style={{fontSize: '16px'}}>Sindicato (Retroalimentación consolidada y evaluada)</span>
-          </label>
-          <label style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', cursor: 'pointer'}}>
-            <input type="checkbox" style={{width: '20px', height: '20px'}} checked={checklistData.ministerio} onChange={(e) => setChecklistData({...checklistData, ministerio: e.target.checked})} />
-            <span style={{fontSize: '16px'}}>Ministerio de Infraestructura (Retroalimentación consolidada y evaluada)</span>
-          </label>
-          <label style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', cursor: 'pointer'}}>
-            <input type="checkbox" style={{width: '20px', height: '20px'}} checked={checklistData.municipios} onChange={(e) => setChecklistData({...checklistData, municipios: e.target.checked})} />
-            <span style={{fontSize: '16px'}}>Municipios Linderos (Retroalimentación consolidada y evaluada)</span>
-          </label>
-          <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
-            <label style={{display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer'}}>
-              <input type="checkbox" style={{width: '20px', height: '20px'}} checked={checklistData.otros} onChange={(e) => setChecklistData({...checklistData, otros: e.target.checked})} />
-              <span style={{fontSize: '16px'}}>Otros:</span>
-            </label>
-            {checklistData.otros && (
-              <input type="text" className="form-control" style={{flex: 1}} placeholder="Ej: Usuarios, Proveedores..." value={checklistData.otrosDetalle} onChange={(e) => setChecklistData({...checklistData, otrosDetalle: e.target.value})} />
-            )}
+
+        <div className="no-print" style={{backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '12px 16px', marginBottom: '24px', fontSize: '13px', color: '#1e40af'}}>
+          Esta solapa se genera automáticamente desde el Análisis de Contexto (Estratégico). Para agregar o quitar una parte interesada, editala en los factores del módulo de Contexto.
+        </div>
+
+        {loadingPartes && (
+          <p className="no-print" style={{ textAlign: 'center', color: '#64748b', padding: '24px' }}>Cargando partes interesadas del Análisis de Contexto...</p>
+        )}
+
+        {!loadingPartes && partesData.length === 0 && (
+          <div className="no-print" style={{backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '8px', padding: '24px', marginBottom: '32px', color: '#92400e'}}>
+            Aún no hay partes interesadas cargadas en el Análisis de Contexto. Cargá los factores en el módulo Contexto (Estratégico) para que aparezcan automáticamente acá.
           </div>
+        )}
+
+        <div className="no-print">
+        {!loadingPartes && partesData.map(parte => (
+          <div key={parte.nombre} style={{backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '24px', marginBottom: '24px'}}>
+            <label style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', cursor: 'pointer'}}>
+              <input type="checkbox" style={{width: '20px', height: '20px'}} checked={!!checklistData.verificadas[parte.nombre]} onChange={(e) => setChecklistData({...checklistData, verificadas: {...checklistData.verificadas, [parte.nombre]: e.target.checked}})} />
+              <span style={{fontSize: '16px'}}><strong>{parte.nombre}</strong> (Retroalimentación consolidada y evaluada)</span>
+            </label>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Riesgo / Oportunidad (del Análisis de Contexto)</th>
+                  <th>Factor Crítico</th>
+                  <th>Proceso</th>
+                  <th style={{textAlign:'center'}}>Prob</th>
+                  <th style={{textAlign:'center'}}>Imp</th>
+                  <th style={{textAlign:'center'}}>Nivel medido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parte.riesgos.map(r => (
+                  <tr key={`${r.id}-${parte.nombre}`}>
+                    <td>{r.riesgo}</td>
+                    <td>{r.factorCritico}</td>
+                    <td>{r.proceso}</td>
+                    <td style={{textAlign:'center', fontWeight:'bold'}}>{r.probabilidad}</td>
+                    <td style={{textAlign:'center', fontWeight:'bold'}}>{r.impacto}</td>
+                    <td style={{textAlign:'center'}}>{getNivelBadge(r.probabilidad, r.impacto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
         </div>
 
         <table className="only-print print-table" style={{width: '100%', marginBottom: '40px', display: 'none'}}>
           <tbody>
-            <tr>
-              <td style={{width: '50px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px'}}>{checklistData.sindicato ? 'X' : ''}</td>
-              <td style={{fontSize: '14px'}}>Sindicato (Retroalimentación consolidada y evaluada)</td>
-            </tr>
-            <tr>
-              <td style={{width: '50px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px'}}>{checklistData.ministerio ? 'X' : ''}</td>
-              <td style={{fontSize: '14px'}}>Ministerio de Infraestructura (Retroalimentación consolidada y evaluada)</td>
-            </tr>
-            <tr>
-              <td style={{width: '50px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px'}}>{checklistData.municipios ? 'X' : ''}</td>
-              <td style={{fontSize: '14px'}}>Municipios Linderos (Retroalimentación consolidada y evaluada)</td>
-            </tr>
-            {checklistData.otros && (
-              <tr>
-                <td style={{width: '50px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px'}}>X</td>
-                <td style={{fontSize: '14px'}}>Otros: {checklistData.otrosDetalle}</td>
-              </tr>
-            )}
+            {partesData.map(parte => (
+              <React.Fragment key={`print-${parte.nombre}`}>
+                <tr>
+                  <td style={{width: '50px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px'}}>{checklistData.verificadas[parte.nombre] ? 'X' : ''}</td>
+                  <td style={{fontSize: '14px'}}><strong>{parte.nombre}</strong> (Retroalimentación consolidada y evaluada)</td>
+                </tr>
+                {parte.riesgos.map(r => (
+                  <tr key={`print-${r.id}-${parte.nombre}`}>
+                    <td></td>
+                    <td style={{fontSize: '12px', color: '#475569'}}>Riesgo: {r.riesgo} — Nivel medido: {r.probabilidad * r.impacto}</td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
           </tbody>
         </table>
 
@@ -496,7 +562,7 @@ export default function ManagementReview() {
         </>
       )}
       
-      {activeTab === 'checklist' && renderChecklistTab()}
+      {activeTab === 'partes' && renderPartesTab()}
     </div>
   );
 }
