@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users, Grid } from 'lucide-react';
+import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users, Grid, UserCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -48,6 +48,10 @@ const Sidebar = () => {
         <NavLink to="/context" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Globe size={18} />
           <span>Contexto (Estratégico)</span>
+        </NavLink>
+        <NavLink to="/partes-interesadas" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <UserCheck size={18} />
+          <span>Partes Interesadas</span>
         </NavLink>
         <NavLink to="/metrics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <BarChart2 size={18} />
