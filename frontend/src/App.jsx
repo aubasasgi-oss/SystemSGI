@@ -11,6 +11,7 @@ import Whistleblowing from './pages/Whistleblowing';
 import InternalAudits from './pages/InternalAudits';
 import Indicators from './pages/Indicators';
 import Context from './pages/Context';
+import PartesInteresadas from './pages/PartesInteresadas';
 import DocumentManager from './pages/DocumentManager';
 import ControlDocumental from './pages/ControlDocumental';
 import Login from './pages/Login';
@@ -53,6 +54,7 @@ function App() {
             <Route path="documents" element={<DocumentManager />} />
             <Route path="control-documental" element={<ControlDocumental />} />
             <Route path="context" element={<Context />} />
+            <Route path="partes-interesadas" element={<PartesInteresadas />} />
             <Route path="risks" element={<Risks />} />
             <Route path="whistleblowing" element={<Whistleblowing />} />
             <Route path="*" element={<Navigate to="/" replace />} />
