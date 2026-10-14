@@ -1,12 +1,13 @@
 import React from 'react';
 
 // Agrupa los factores del Análisis de Contexto por parte interesada.
-// El campo partesInteresadas puede traer varias separadas por coma.
+// El campo admite varias partes separadas por coma o por barra ("/"),
+// que es como se cargan en la práctica: "Usuarios / Concedente / Comunidad".
 export const agruparPorParteInteresada = (items) => {
   const mapa = new Map();
   (items || []).forEach(it => {
     const partes = String(it.partesInteresadas || '')
-      .split(',')
+      .split(/[,/]/)
       .map(p => p.trim())
       .filter(Boolean);
     partes.forEach(nombre => {
