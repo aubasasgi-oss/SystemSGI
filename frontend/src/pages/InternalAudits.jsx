@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Plus, Edit2, Save, Printer, ChevronLeft, Trash2, Image as ImageIcon,
-  FileText, CheckCircle2, AlertTriangle, XCircle, Sparkles, Download,
-  Search, ClipboardCheck, Eye, PenTool, Building2, Calendar, MapPin, Users
+  FileText, CheckCircle2, AlertTriangle, Sparkles, Download,
+  Search, ClipboardCheck, Eye, PenTool, Building2, Calendar, MapPin, Users, ShieldCheck
 } from 'lucide-react';
 import SignaturePad from 'signature_pad';
 import {
@@ -18,6 +18,7 @@ import {
 
 const STORAGE_KEY_PROGRAMA = 'sgi_aubasa_programa_auditorias_v2';
 const STORAGE_KEY_INFORMES = 'sgi_aubasa_informes_auditorias_v2';
+const STORAGE_KEY_SESSION_UI = 'sgi_aubasa_auditoria_ui_state_v2';
 
 // Modal reutilizable para firmar dibujando en pantalla o subiendo imagen + Nombre y Apellido
 function SignatureModal({ isOpen, onClose, onSave, currentImage, currentName, title }) {
@@ -195,12 +196,21 @@ export default function InternalAudits() {
   const { checkPermission } = useAuth();
   const isSGI = checkPermission('SGI');
 
-  // Navegación principal: 'informes' | 'programa' | 'hallazgos'
-  const [activeTab, setActiveTab] = useState('informes');
-  const [viewMode, setViewMode] = useState('general'); // Para Programa: 'general' | 'sectorial'
+  // Restaurar también la pantalla/informe que estaba abierto por si la página se refresca tras 2 hs
+  const savedUiState = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_SESSION_UI);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const [activeTab, setActiveTab] = useState(savedUiState.activeTab || 'informes');
+  const [viewMode, setViewMode] = useState(savedUiState.viewMode || 'general');
   const [isEditing, setIsEditing] = useState(false);
 
-  // Estado del Programa Anual (PAU/07 A2 y A3) con persistencia en localStorage
+  // Estado del Programa Anual (PAU/07 A2 y A3) con persistencia inmediata
   const [programa, setPrograma] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PROGRAMA);
@@ -210,7 +220,7 @@ export default function InternalAudits() {
     }
   });
 
-  // Estado de los Informes de Auditoría (PAU/07 A4 / Motor Auditorias) con persistencia
+  // Estado de los Informes de Auditoría (PAU/07 A4 / Motor Auditorias) con persistencia inmediata
   const [informes, setInformes] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_INFORMES);
@@ -220,9 +230,13 @@ export default function InternalAudits() {
     }
   });
 
-  const [selectedSectorId, setSelectedSectorId] = useState(null);
-  const [selectedInformeId, setSelectedInformeId] = useState(null);
-  const [informeSubTab, setInformeSubTab] = useState('checklist'); // 'datos' | 'checklist' | 'hallazgos' | 'documento'
+  const [selectedSectorId, setSelectedSectorId] = useState(savedUiState.selectedSectorId || null);
+  const [selectedInformeId, setSelectedInformeId] = useState(savedUiState.selectedInformeId || null);
+  const [informeSubTab, setInformeSubTab] = useState(savedUiState.informeSubTab || 'checklist');
+
+  // Indicador de autoguardado en tiempo real (evita pérdida en auditorías de +2 horas)
+  const [lastSavedAt, setLastSavedAt] = useState(() => new Date().toLocaleTimeString('es-AR'));
+  const [saveBanner, setSaveBanner] = useState('');
 
   // Filtros interactivos del Checklist
   const [capFilter, setCapFilter] = useState('TODOS');
@@ -232,10 +246,11 @@ export default function InternalAudits() {
   // Modal de Firma
   const [sigModal, setSigModal] = useState({ open: false, title: '', currentImage: '', currentName: '', onSave: null });
 
-  // Guardar automáticamente en localStorage ante cambios
+  // Guardar automáticamente cada cambio de Programa, Informes y pestaña activa en el navegador
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PROGRAMA, JSON.stringify(programa));
+      setLastSavedAt(new Date().toLocaleTimeString('es-AR'));
     } catch (e) {
       console.error('Error guardando programa en localStorage:', e);
     }
@@ -244,10 +259,38 @@ export default function InternalAudits() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_INFORMES, JSON.stringify(informes));
+      setLastSavedAt(new Date().toLocaleTimeString('es-AR'));
     } catch (e) {
       console.error('Error guardando informes en localStorage:', e);
     }
   }, [informes]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_SESSION_UI, JSON.stringify({
+        activeTab,
+        viewMode,
+        selectedSectorId,
+        selectedInformeId,
+        informeSubTab
+      }));
+    } catch (e) {
+      console.error('Error guardando estado de sesión UI:', e);
+    }
+  }, [activeTab, viewMode, selectedSectorId, selectedInformeId, informeSubTab]);
+
+  const handleManualSave = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY_PROGRAMA, JSON.stringify(programa));
+      localStorage.setItem(STORAGE_KEY_INFORMES, JSON.stringify(informes));
+      const now = new Date().toLocaleTimeString('es-AR');
+      setLastSavedAt(now);
+      setSaveBanner(`✓ Informe guardado de forma segura (${now}). Aunque pasen más de 2 horas o se recargue el navegador, tus datos no se pierden.`);
+      setTimeout(() => setSaveBanner(''), 5000);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const openSignatureModal = (title, currentImage, currentName, onSave) => {
     setSigModal({ open: true, title, currentImage, currentName, onSave });
@@ -461,6 +504,7 @@ export default function InternalAudits() {
         <div style={{ display: 'flex', gap: '12px' }}>
           {isSGI && (
             <button
+              type="button"
               className={`btn ${isEditing ? 'btn-success' : 'btn-secondary'}`}
               onClick={() => setIsEditing(!isEditing)}
               style={isEditing ? { backgroundColor: '#16a34a', color: 'white' } : {}}
@@ -468,7 +512,7 @@ export default function InternalAudits() {
               {isEditing ? <><Save size={18} /> Guardar Cambios</> : <><Edit2 size={18} /> Activar Edición</>}
             </button>
           )}
-          <button className="btn btn-primary" onClick={() => window.print()}><Printer size={18} /> Imprimir Programa</button>
+          <button type="button" className="btn btn-primary" onClick={() => window.print()}><Printer size={18} /> Imprimir Programa</button>
         </div>
       </div>
 
@@ -503,7 +547,7 @@ export default function InternalAudits() {
 
         <div style={{ fontWeight: 'bold', backgroundColor: '#f8fafc', padding: '8px 12px', borderLeft: '4px solid var(--accent-color)', color: '#0f172a', marginBottom: '16px', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>AGENDA DETALLADA POR SECTORES</span>
-          {isEditing && <button className="btn btn-primary no-print" onClick={addSector} style={{ padding: '4px 12px', fontSize: '12px' }}><Plus size={14} /> Agregar Sector</button>}
+          {isEditing && <button type="button" className="btn btn-primary no-print" onClick={addSector} style={{ padding: '4px 12px', fontSize: '12px' }}><Plus size={14} /> Agregar Sector</button>}
         </div>
 
         <table className="print-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: '13px' }}>
@@ -552,7 +596,7 @@ export default function InternalAudits() {
                       Auditar
                     </button>
                     {isEditing && (
-                      <button className="btn btn-icon" onClick={() => removeSector(s.id)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={15} /></button>
+                      <button type="button" className="btn btn-icon" onClick={() => removeSector(s.id)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={15} /></button>
                     )}
                   </div>
                 </td>
@@ -571,6 +615,7 @@ export default function InternalAudits() {
                   {programa.nombreJefeSGI && <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>{programa.nombreJefeSGI}</div>}
                   {(isEditing || isSGI) && (
                     <button
+                      type="button"
                       onClick={() => openSignatureModal('Firma Jefe de SGI', programa.firmaJefeSGI, programa.nombreJefeSGI, (img, nom) => setPrograma({ ...programa, firmaJefeSGI: img, nombreJefeSGI: nom }))}
                       className="no-print"
                       style={{ position: 'absolute', top: '-8px', right: '-24px', color: 'var(--accent-color)', background: 'white', border: '1px solid #cbd5e1', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}
@@ -605,6 +650,7 @@ export default function InternalAudits() {
                   {programa.nombreGerenteGeneral && <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>{programa.nombreGerenteGeneral}</div>}
                   {(isEditing || isSGI) && (
                     <button
+                      type="button"
                       onClick={() => openSignatureModal('Firma Gerente General', programa.firmaGerenteGeneral, programa.nombreGerenteGeneral, (img, nom) => setPrograma({ ...programa, firmaGerenteGeneral: img, nombreGerenteGeneral: nom }))}
                       className="no-print"
                       style={{ position: 'absolute', top: '-8px', right: '-24px', color: 'var(--accent-color)', background: 'white', border: '1px solid #cbd5e1', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}
@@ -651,13 +697,13 @@ export default function InternalAudits() {
             <p style={{ color: 'var(--text-secondary)', margin: 0 }}>PAU/07 Anexo 3 — Detalle de procesos a auditar</p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-secondary" onClick={closeSectorial} disabled={isEditing}><ChevronLeft size={18} /> Volver al Programa</button>
+            <button type="button" className="btn btn-secondary" onClick={closeSectorial} disabled={isEditing}><ChevronLeft size={18} /> Volver al Programa</button>
             {isSGI && (
-              <button className={`btn ${isEditing ? 'btn-success' : 'btn-secondary'}`} onClick={() => setIsEditing(!isEditing)} style={isEditing ? { backgroundColor: '#16a34a', color: 'white' } : {}}>
+              <button type="button" className={`btn ${isEditing ? 'btn-success' : 'btn-secondary'}`} onClick={() => setIsEditing(!isEditing)} style={isEditing ? { backgroundColor: '#16a34a', color: 'white' } : {}}>
                 {isEditing ? <><Save size={18} /> Guardar Cambios</> : <><Edit2 size={18} /> Activar Edición</>}
               </button>
             )}
-            <button className="btn btn-primary" onClick={() => window.print()}><Printer size={18} /> Imprimir Plan</button>
+            <button type="button" className="btn btn-primary" onClick={() => window.print()}><Printer size={18} /> Imprimir Plan</button>
           </div>
         </div>
 
@@ -709,7 +755,7 @@ export default function InternalAudits() {
 
           <div style={{ backgroundColor: '#0f172a', color: 'white', padding: '8px', fontWeight: 'bold', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ marginLeft: '12px' }}>DETALLE DEL PLAN DE LA AUDITORÍA</span>
-            {isEditing && <button className="btn btn-primary no-print" onClick={addProceso} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--accent-color)' }}><Plus size={14} /> Agregar Proceso</button>}
+            {isEditing && <button type="button" className="btn btn-primary no-print" onClick={addProceso} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--accent-color)' }}><Plus size={14} /> Agregar Proceso</button>}
           </div>
 
           <table className="print-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: '12px', marginBottom: '32px' }}>
@@ -736,7 +782,7 @@ export default function InternalAudits() {
                   <td style={{ border: '1px solid #cbd5e1', padding: '10px', whiteSpace: 'pre-wrap' }}>{renderEditableText(proc.participantes, (v) => updateProceso(idx, 'participantes', v), "Participantes...", true)}</td>
                   {isEditing && (
                     <td className="no-print" style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>
-                      <button className="btn btn-icon" onClick={() => removeProceso(idx)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                      <button type="button" className="btn btn-icon" onClick={() => removeProceso(idx)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </td>
                   )}
                 </tr>
@@ -755,6 +801,7 @@ export default function InternalAudits() {
                     {p.nombreAuditor && <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>{p.nombreAuditor}</div>}
                     {(isEditing || isSGI) && (
                       <button
+                        type="button"
                         onClick={() => openSignatureModal('Firma Auditor Responsable', p.firmaAuditor, p.nombreAuditor, (img, nom) => {
                           updatePlanSectorial('firmaAuditor', img);
                           updatePlanSectorial('nombreAuditor', nom);
@@ -792,7 +839,6 @@ export default function InternalAudits() {
   // VISTA 2: EJECUCIÓN E INFORMES DE AUDITORÍA (INTEGRACIÓN DE AUDITORIAS.GIT)
   // ============================================================================
   const renderListaInformes = () => {
-    // Estadísticas globales
     let totalCumple = 0;
     let totalOB = 0;
     let totalNC = 0;
@@ -813,10 +859,10 @@ export default function InternalAudits() {
               Ejecución e Informes de Auditoría Interna (PAU/07 Anexo 4)
             </h2>
             <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '13.5px' }}>
-              Motor interactivo de evaluación normativa (ISO 9001 • ISO 39001 • IRAM 3810), checklist de 28 cláusulas, registro de evidencias y exportación PDF oficial.
+              Autoguardado instantáneo en cada clic/tecla — diseñado para auditorías extensas (+2 hs) sin riesgo de desconexión ni pérdida al generar el PDF.
             </p>
           </div>
-          <button className="btn btn-primary" onClick={() => crearNuevoInforme()}>
+          <button type="button" className="btn btn-primary" onClick={() => crearNuevoInforme()}>
             <Plus size={18} /> Nueva Auditoría Interna
           </button>
         </div>
@@ -969,21 +1015,39 @@ export default function InternalAudits() {
 
     return (
       <div className="animate-fade-in">
+        {/* Banner de confirmación si el usuario toca "Guardar Informe" */}
+        {saveBanner && (
+          <div className="no-print" style={{
+            backgroundColor: '#dcfce7', border: '1px solid #86efac', color: '#166534',
+            padding: '12px 18px', borderRadius: '10px', marginBottom: '16px', fontWeight: 600, fontSize: '13.5px',
+            display: 'flex', alignItems: 'center', gap: '8px'
+          }}>
+            <ShieldCheck size={18} /> {saveBanner}
+          </div>
+        )}
+
         {/* Barra Superior del Informe */}
         <div className="no-print glass" style={{ padding: '20px 24px', marginBottom: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button className="btn btn-secondary" onClick={() => setSelectedInformeId(null)} style={{ padding: '8px 12px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setSelectedInformeId(null)} style={{ padding: '8px 12px' }}>
                 <ChevronLeft size={18} /> Volver
               </button>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <h2 style={{ margin: 0, fontSize: '21px', color: '#0f172a' }}>{selectedInforme.sector}</h2>
                   <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#e0f2fe', color: '#0369a1' }}>
                     {selectedInforme.codigoInforme}
                   </span>
+                  <span style={{
+                    fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
+                    background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                    display: 'inline-flex', alignItems: 'center', gap: '5px'
+                  }}>
+                    <ShieldCheck size={13} /> Autoguardado activo ({lastSavedAt})
+                  </span>
                 </div>
-                <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                <p style={{ margin: '3px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
                   Fecha: {selectedInforme.fechas_auditoria} • Lugar: {selectedInforme.lugar} • Auditor: {selectedInforme.auditor_responsable}
                 </p>
               </div>
@@ -1002,11 +1066,26 @@ export default function InternalAudits() {
                 <option value="En Curso">Estado: En Curso</option>
                 <option value="Cerrada">Estado: Cerrada / Finalizada</option>
               </select>
-              <button className="btn btn-secondary" onClick={() => setInformeSubTab('documento')}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleManualSave}
+                style={{ backgroundColor: '#16a34a', color: 'white', borderColor: '#16a34a' }}
+              >
+                <Save size={16} /> Guardar Informe
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setInformeSubTab('documento')}>
                 <Eye size={16} /> Vista A4
               </button>
-              <button className="btn btn-primary" onClick={() => generarPDFInformeAuditoria(selectedInforme)}>
-                <Download size={16} /> Descargar PDF AUBASA
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  handleManualSave();
+                  generarPDFInformeAuditoria(selectedInforme);
+                }}
+              >
+                <Download size={16} /> Generar y Descargar PDF
               </button>
             </div>
           </div>
@@ -1175,7 +1254,7 @@ export default function InternalAudits() {
             </div>
 
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary" onClick={() => setInformeSubTab('checklist')}>
+              <button type="button" className="btn btn-primary" onClick={() => setInformeSubTab('checklist')}>
                 Continuar al Checklist Normativo →
               </button>
             </div>
@@ -1327,7 +1406,7 @@ export default function InternalAudits() {
 
                     {/* Campos de Evidencia, Detalle del Hallazgo y Oportunidad de Mejora */}
                     {isEvaluated && (
-                      <div style={{ display: 'grid', gridTemplateColumns: (isNC || isOB) ? '1fr 1fr' : '1fr 1fr', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                             Evidencia Objetiva Verificada (Documentos, registros, entrevistas)
@@ -1559,8 +1638,8 @@ export default function InternalAudits() {
         {informeSubTab === 'documento' && (
           <div className="printable-doc" style={{ background: 'white', padding: '45px 55px', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', maxWidth: '1000px', margin: '0 auto', border: '1px solid #e2e8f0', color: '#1e293b' }}>
             <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginBottom: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir Hoja A4</button>
-              <button className="btn btn-primary" onClick={() => generarPDFInformeAuditoria(selectedInforme)}><Download size={16} /> Exportar PDF Directo</button>
+              <button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir Hoja A4</button>
+              <button type="button" className="btn btn-primary" onClick={() => { handleManualSave(); generarPDFInformeAuditoria(selectedInforme); }}><Download size={16} /> Exportar PDF Directo</button>
             </div>
 
             <div className="print-header" style={{ display: 'flex', border: '1px solid #000', marginBottom: '28px' }}>
@@ -1829,6 +1908,7 @@ export default function InternalAudits() {
       <div className="no-print">
         <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', marginBottom: '28px', flexWrap: 'wrap' }}>
           <button
+            type="button"
             className={`tab-btn ${activeTab === 'informes' ? 'active' : ''}`}
             onClick={() => { setActiveTab('informes'); setIsEditing(false); }}
             style={{
@@ -1842,6 +1922,7 @@ export default function InternalAudits() {
           </button>
 
           <button
+            type="button"
             className={`tab-btn ${activeTab === 'programa' ? 'active' : ''}`}
             onClick={() => { setActiveTab('programa'); setViewMode('general'); setIsEditing(false); }}
             style={{
@@ -1855,6 +1936,7 @@ export default function InternalAudits() {
           </button>
 
           <button
+            type="button"
             className={`tab-btn ${activeTab === 'hallazgos' ? 'active' : ''}`}
             onClick={() => { setActiveTab('hallazgos'); setIsEditing(false); }}
             style={{

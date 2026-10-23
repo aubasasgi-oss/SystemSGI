@@ -22,19 +22,30 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    // 2. Escuchar cambios de sesión (Login / Logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+    // 2. Escuchar cambios de sesión (Login / Logout) sin desmontar ni resetear la pantalla en renovaciones de token (>1-2 hs)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
         setUserRole(null);
         setUserSector(null);
         setLoading(false);
+        return;
+      }
+      if (session?.user) {
+        setUser(prev => (prev?.id === session.user.id ? prev : session.user));
+        fetchProfile(session.user.id);
       }
     });
 
-    return () => subscription.unsubscribe();
+    // 3. Keep-alive cada 10 minutos para sesiones largas de auditoría (+2 hs)
+    const keepAlive = setInterval(() => {
+      supabase.auth.getSession().catch(() => {});
+    }, 10 * 60 * 1000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(keepAlive);
+    };
   }, []);
 
   const fetchProfile = async (userId) => {
