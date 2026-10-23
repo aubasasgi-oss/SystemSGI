@@ -1147,20 +1147,20 @@ export default function InternalAudits() {
 
         {/* Barra Superior del Informe */}
         <div className="no-print glass" style={{ padding: '20px 24px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setSelectedInformeId(null)} style={{ padding: '8px 12px' }}>
-                <ChevronLeft size={18} /> Volver a Informes
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1', minWidth: '300px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setSelectedInformeId(null)} style={{ padding: '8px 14px' }}>
+                <ChevronLeft size={17} /> Volver
               </button>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <h2 style={{ margin: 0, fontSize: '21px', color: '#0f172a' }}>{selectedInforme.sector}</h2>
-                  <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#e0f2fe', color: '#0369a1' }}>
+                  <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>{selectedInforme.sector}</h2>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#e0f2fe', color: '#0369a1' }}>
                     {selectedInforme.codigoInforme}
                   </span>
                   {isSGI && (
                     <span style={{
-                      fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
+                      fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
                       background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
                       display: 'inline-flex', alignItems: 'center', gap: '5px'
                     }}>
@@ -1168,34 +1168,34 @@ export default function InternalAudits() {
                     </span>
                   )}
                 </div>
-                <p style={{ margin: '3px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
-                  Fecha: {selectedInforme.fechas_auditoria} • Lugar: {selectedInforme.lugar} • Auditor: {selectedInforme.auditor_responsable}
+                <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
+                  Fecha: <strong>{selectedInforme.fechas_auditoria}</strong> • Lugar: <strong>{selectedInforme.lugar}</strong> • Auditor: <strong>{selectedInforme.auditor_responsable}</strong>
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               {isSGI && (
                 <>
                   <select
                     value={selectedInforme.estado}
                     onChange={(e) => updateInformeField('estado', e.target.value)}
                     style={{
-                      padding: '8px 12px', borderRadius: '8px', fontWeight: 700, fontSize: '13px',
+                      padding: '8px 12px', borderRadius: '8px', fontWeight: 700, fontSize: '12.5px', cursor: 'pointer',
                       border: '1px solid #cbd5e1', background: selectedInforme.estado === 'Cerrada' ? '#dcfce7' : '#fef3c7',
                       color: selectedInforme.estado === 'Cerrada' ? '#166534' : '#92400e'
                     }}
                   >
                     <option value="En Curso">Estado: En Curso</option>
-                    <option value="Cerrada">Estado: Cerrada / Finalizada</option>
+                    <option value="Cerrada">Estado: Cerrada</option>
                   </select>
                   <button
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => handleManualSave()}
-                    style={{ backgroundColor: '#16a34a', color: 'white', borderColor: '#16a34a' }}
+                    style={{ backgroundColor: '#16a34a', color: 'white', borderColor: '#16a34a', padding: '8px 14px', fontSize: '12.5px' }}
                   >
-                    <Save size={16} /> Guardar Todo el Informe
+                    <Save size={15} /> Guardar Todo
                   </button>
                 </>
               )}
@@ -1206,30 +1206,32 @@ export default function InternalAudits() {
                   if (isSGI) handleManualSave();
                   generarPDFInformeAuditoria(selectedInforme);
                 }}
+                style={{ padding: '8px 14px', fontSize: '12.5px' }}
               >
-                <Download size={16} /> Descargar PDF del Informe
+                <Download size={15} /> Descargar PDF
               </button>
             </div>
           </div>
 
           {/* Sub-pestañas de la Plantilla: SOLO VISIBLES PARA ADMIN SGI */}
           {isSGI && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {[
-                  { id: 'datos', label: '1. Datos y Equipo Auditor', icon: <Building2 size={15} /> },
-                  { id: 'checklist', label: `2. Checklist por Capítulos (${res.evaluados}/${res.totalRequisitos})`, icon: <ClipboardCheck size={15} /> },
-                  { id: 'hallazgos', label: `3. Fortalezas, OM y Firmas (${res.fortalezasCount + res.oportunidadesCount})`, icon: <Sparkles size={15} /> },
-                  { id: 'documento', label: '4. Vista Previa Informe Oficial A4', icon: <FileText size={15} /> }
+                  { id: 'datos', label: '1. Datos y Equipo Auditor', icon: <Building2 size={14} /> },
+                  { id: 'checklist', label: `2. Checklist por Capítulos (${res.evaluados}/${res.totalRequisitos})`, icon: <ClipboardCheck size={14} /> },
+                  { id: 'hallazgos', label: `3. Fortalezas, OM y Firmas (${res.fortalezasCount + res.oportunidadesCount})`, icon: <Sparkles size={14} /> },
+                  { id: 'documento', label: '4. Vista Previa Informe A4', icon: <FileText size={14} /> }
                 ].map(t => (
                   <button
                     key={t.id}
                     type="button"
                     onClick={() => setInformeSubTab(t.id)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px',
-                      border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
-                      background: activeTabToRender === t.id ? 'var(--accent-color)' : '#f1f5f9',
+                      display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 13px', borderRadius: '8px',
+                      border: activeTabToRender === t.id ? '1px solid var(--accent-color)' : '1px solid #e2e8f0',
+                      cursor: 'pointer', fontWeight: 600, fontSize: '12.5px',
+                      background: activeTabToRender === t.id ? 'var(--accent-color)' : '#f8fafc',
                       color: activeTabToRender === t.id ? 'white' : '#475569'
                     }}
                   >
@@ -1238,10 +1240,10 @@ export default function InternalAudits() {
                 ))}
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: 700 }}>
-                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#dcfce7', color: '#166534' }}>Cumple: {res.cumple}</span>
-                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fef3c7', color: '#92400e' }}>OB: {res.ob}</span>
-                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fee2e2', color: '#991b1b' }}>NC: {res.nc}</span>
+              <div style={{ display: 'flex', gap: '6px', fontSize: '11.5px', fontWeight: 700 }}>
+                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#dcfce7', color: '#166534' }}>✓ Cumple: {res.cumple}</span>
+                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fef3c7', color: '#92400e' }}>⚠ OB: {res.ob}</span>
+                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fee2e2', color: '#991b1b' }}>✕ NC: {res.nc}</span>
               </div>
             </div>
           )}
@@ -1250,10 +1252,10 @@ export default function InternalAudits() {
         {/* SUB-PESTAÑA 1: DATOS GENERALES Y EQUIPO AUDITOR (SOLO SGI) */}
         {isSGI && activeTabToRender === 'datos' && (
           <div className="glass" style={{ padding: '28px' }}>
-            <h3 style={{ margin: '0 0 18px 0', color: '#0f172a', fontSize: '17px', borderLeft: '4px solid var(--accent-color)', paddingLeft: '10px' }}>
+            <h3 style={{ margin: '0 0 18px 0', color: '#0f172a', fontSize: '16px', borderLeft: '4px solid var(--accent-color)', paddingLeft: '10px' }}>
               1. Información General de la Auditoría (Exclusivo SGI)
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '18px', marginBottom: '28px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>Sector Auditado</label>
                 <select
