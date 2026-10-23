@@ -15,7 +15,9 @@ export async function listarManagementReviews() {
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data || []).map(filaAReview);
+  return (data || [])
+    .filter(row => !String(row.id || '').startsWith('AUDIT_'))
+    .map(filaAReview);
 }
 
 export async function guardarManagementReview(review) {

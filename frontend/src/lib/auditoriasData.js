@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { supabase } from '../supabaseClient';
 
 export const SECTORES_AUDITORIA = [
   "Gerencia de Recursos Humanos",
@@ -15,6 +16,16 @@ export const SECTORES_AUDITORIA = [
   "Gerencia de Asuntos Legales",
   "Gerencia General",
   "Sistema de Gestión Integrado"
+];
+
+export const CAPITULOS_ISO = [
+  { id: '4', numero: 'Capítulo 4', nombre: 'Contexto de la Organización', corto: 'Cap. 4 Contexto' },
+  { id: '5', numero: 'Capítulo 5', nombre: 'Liderazgo', corto: 'Cap. 5 Liderazgo' },
+  { id: '6', numero: 'Capítulo 6', nombre: 'Planificación', corto: 'Cap. 6 Planificación' },
+  { id: '7', numero: 'Capítulo 7', nombre: 'Apoyo y Recursos', corto: 'Cap. 7 Apoyo' },
+  { id: '8', numero: 'Capítulo 8', nombre: 'Operación', corto: 'Cap. 8 Operación' },
+  { id: '9', numero: 'Capítulo 9', nombre: 'Evaluación del Desempeño', corto: 'Cap. 9 Desempeño' },
+  { id: '10', numero: 'Capítulo 10', nombre: 'Mejora', corto: 'Cap. 10 Mejora' }
 ];
 
 export const REQUISITOS_NORMATIVOS = [
@@ -347,6 +358,7 @@ export const INITIAL_INFORMES = [
     nombreFirmaAuditor: 'Sergio Montes',
     firmaResponsableSector: '',
     nombreFirmaResponsable: 'Mariano (Gerencia Comercial)',
+    capitulosGuardados: { '4': '04/06/2025', '5': '04/06/2025', '6': '04/06/2025', '7': '04/06/2025', '8': '04/06/2025', '9': '04/06/2025', '10': '04/06/2025' },
     fortalezas: [
       'Compromiso activo y buena predisposición del personal auditado en estación Samborombón durante el relevamiento.',
       'Adecuado conocimiento de los canales de atención al usuario y gestión primaria de reclamos en vía.'
@@ -390,6 +402,7 @@ export const INITIAL_INFORMES = [
     nombreFirmaAuditor: 'Sergio Montes',
     firmaResponsableSector: '',
     nombreFirmaResponsable: '',
+    capitulosGuardados: { '4': '25/03/2026', '6': '25/03/2026', '9': '25/03/2026' },
     fortalezas: [
       'Implementación del sistema digital integrado (SystemSGI) para la trazabilidad de riesgos, indicadores, control documental y auditorías.',
       'Actualización y digitalización de perfiles de puesto con firma electrónica en el módulo de Competencia y Formación.'
@@ -409,6 +422,79 @@ export const INITIAL_INFORMES = [
   }
 ];
 
+// Sincronización con Supabase para que todos los usuarios vean los PDFs/Informes guardados por SGI
+export async function cargarDatosAuditoriasCloud() {
+  try {
+    const { data, error } = await supabase
+      .from('sgi_management_reviews')
+      .select('*')
+      .like('id', 'AUDIT_%');
+    if (error || !data) return null;
+
+    const progRow = data.find(r => r.id === 'AUDIT_PROGRAMA_2026');
+    const informesRows = data
+      .filter(r => String(r.id).startsWith('AUDIT_INF_'))
+      .map(r => r.data)
+      .filter(Boolean);
+
+    return {
+      programa: progRow?.data || null,
+      informes: informesRows.length > 0 ? informesRows : null
+    };
+  } catch (e) {
+    console.warn('Fallback local para auditorías:', e);
+    return null;
+  }
+}
+
+export async function guardarInformeAuditoriaCloud(informe) {
+  if (!informe?.id) return;
+  try {
+    await supabase
+      .from('sgi_management_reviews')
+      .upsert({
+        id: `AUDIT_INF_${informe.id}`,
+        year: String(informe.anio || '2026'),
+        status: informe.estado || 'En Curso',
+        date: informe.fechas_auditoria || new Date().toISOString().split('T')[0],
+        participants: informe.sector || 'SGI',
+        data: informe,
+        updated_at: new Date().toISOString()
+      });
+  } catch (e) {
+    console.warn('Guardado local mantenido, error sincronizando nube:', e);
+  }
+}
+
+export async function eliminarInformeAuditoriaCloud(informeId) {
+  try {
+    await supabase
+      .from('sgi_management_reviews')
+      .delete()
+      .eq('id', `AUDIT_INF_${informeId}`);
+  } catch (e) {
+    console.warn('Error eliminando en nube:', e);
+  }
+}
+
+export async function guardarProgramaAuditoriaCloud(programa) {
+  try {
+    await supabase
+      .from('sgi_management_reviews')
+      .upsert({
+        id: 'AUDIT_PROGRAMA_2026',
+        year: String(programa.year || '2026'),
+        status: 'Vigente',
+        date: new Date().toISOString().split('T')[0],
+        participants: 'Programa Anual SGI',
+        data: programa,
+        updated_at: new Date().toISOString()
+      });
+  } catch (e) {
+    console.warn('Error sincronizando programa en nube:', e);
+  }
+}
+
 export function calcularResumenInforme(informe) {
   let cumple = 0;
   let ob = 0;
@@ -417,9 +503,22 @@ export function calcularResumenInforme(informe) {
   const listaOB = [];
   const listaNC = [];
   const listaOMReq = [];
+  const porCapitulo = {};
+
+  CAPITULOS_ISO.forEach(c => {
+    porCapitulo[c.id] = { total: 0, evaluados: 0, hallazgos: 0 };
+  });
 
   REQUISITOS_NORMATIVOS.forEach(req => {
     const ev = informe.evaluaciones?.[req.codigo] || { resultado: 'No Requiere' };
+    if (porCapitulo[req.capitulo]) {
+      porCapitulo[req.capitulo].total++;
+      if (ev.resultado !== 'No Requiere') porCapitulo[req.capitulo].evaluados++;
+      if (ev.resultado === 'Observación (OB)' || ev.resultado === 'No Conformidad (NC)') {
+        porCapitulo[req.capitulo].hallazgos++;
+      }
+    }
+
     if (ev.resultado === 'Cumple') cumple++;
     else if (ev.resultado === 'Observación (OB)') {
       ob++;
@@ -451,7 +550,8 @@ export function calcularResumenInforme(informe) {
     oportunidadesCount: (informe.oportunidades || []).filter(o => o.trim()).length + listaOMReq.length,
     listaOB,
     listaNC,
-    listaOMReq
+    listaOMReq,
+    porCapitulo
   };
 }
 
@@ -459,7 +559,6 @@ export function generarPDFInformeAuditoria(informe) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const resumen = calcularResumenInforme(informe);
 
-  // Colores corporativos estilo auditorias.git (#006d77 y #00AEEF)
   const tealDark = [0, 109, 119];
   const slateDark = [15, 23, 42];
 
@@ -494,7 +593,7 @@ export function generarPDFInformeAuditoria(informe) {
 
   // 2. Equipo Auditor y Personal Contactado
   const auditores = [
-    informe.auditor_responsable ? `${informe.auditor_responsable} (Auditor Líder / Responsable)` : '',
+    informe.auditor_responsable ? `${informe.auditor_responsable} (Auditor Responsable)` : '',
     informe.auditor_2,
     informe.auditor_3
   ].filter(Boolean).join(' | ');
@@ -612,7 +711,6 @@ export function generarPDFInformeAuditoria(informe) {
     finalY = 30;
   }
 
-  // Bloque de firmas
   const sigY = finalY + 12;
   if (informe.firmaAuditor) {
     try {
@@ -636,7 +734,7 @@ export function generarPDFInformeAuditoria(informe) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text(informe.nombreFirmaAuditor || informe.auditor_responsable || 'Firma Auditor Líder', 55, sigY + 17, { align: 'center' });
+  doc.text(informe.nombreFirmaAuditor || informe.auditor_responsable || 'Firma Auditor', 55, sigY + 17, { align: 'center' });
   doc.text(informe.nombreFirmaResponsable || 'Responsable Sector Auditado', 150, sigY + 17, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');

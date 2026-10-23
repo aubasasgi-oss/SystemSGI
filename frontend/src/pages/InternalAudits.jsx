@@ -1,19 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import {
-  Plus, Edit2, Save, Printer, ChevronLeft, Trash2, Image as ImageIcon,
+  Plus, Edit2, Save, Printer, ChevronLeft, ChevronRight, Trash2, Image as ImageIcon,
   FileText, CheckCircle2, AlertTriangle, Sparkles, Download,
-  Search, ClipboardCheck, Eye, PenTool, Building2, Calendar, MapPin, Users, ShieldCheck
+  Search, ClipboardCheck, Eye, PenTool, Building2, Calendar, MapPin, Users, ShieldCheck, Lock
 } from 'lucide-react';
 import SignaturePad from 'signature_pad';
 import {
   SECTORES_AUDITORIA,
+  CAPITULOS_ISO,
   REQUISITOS_NORMATIVOS,
   INITIAL_PROGRAMA_2026,
   INITIAL_INFORMES,
   crearEvaluacionesVacias,
   calcularResumenInforme,
-  generarPDFInformeAuditoria
+  generarPDFInformeAuditoria,
+  cargarDatosAuditoriasCloud,
+  guardarInformeAuditoriaCloud,
+  eliminarInformeAuditoriaCloud,
+  guardarProgramaAuditoriaCloud
 } from '../lib/auditoriasData';
 
 const STORAGE_KEY_PROGRAMA = 'sgi_aubasa_programa_auditorias_v2';
@@ -193,10 +198,10 @@ function SignatureModal({ isOpen, onClose, onSave, currentImage, currentName, ti
 }
 
 export default function InternalAudits() {
-  const { checkPermission } = useAuth();
-  const isSGI = checkPermission('SGI');
+  const { userRole, checkPermission } = useAuth();
+  const isSGI = userRole === 'SGI' || checkPermission('SGI');
 
-  // Restaurar también la pantalla/informe que estaba abierto por si la página se refresca tras 2 hs
+  // Restaurar estado de navegación por si la página se refresca durante una auditoría larga
   const savedUiState = (() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_SESSION_UI);
@@ -210,7 +215,7 @@ export default function InternalAudits() {
   const [viewMode, setViewMode] = useState(savedUiState.viewMode || 'general');
   const [isEditing, setIsEditing] = useState(false);
 
-  // Estado del Programa Anual (PAU/07 A2 y A3) con persistencia inmediata
+  // Estado del Programa Anual (PAU/07 A2 y A3)
   const [programa, setPrograma] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PROGRAMA);
@@ -220,7 +225,7 @@ export default function InternalAudits() {
     }
   });
 
-  // Estado de los Informes de Auditoría (PAU/07 A4 / Motor Auditorias) con persistencia inmediata
+  // Estado de los Informes de Auditoría (PAU/07 A4)
   const [informes, setInformes] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_INFORMES);
@@ -232,21 +237,48 @@ export default function InternalAudits() {
 
   const [selectedSectorId, setSelectedSectorId] = useState(savedUiState.selectedSectorId || null);
   const [selectedInformeId, setSelectedInformeId] = useState(savedUiState.selectedInformeId || null);
-  const [informeSubTab, setInformeSubTab] = useState(savedUiState.informeSubTab || 'checklist');
+  // Si NO es SGI, siempre ve únicamente 'documento' (el informe A4 / PDF), nunca la plantilla editable
+  const [informeSubTab, setInformeSubTab] = useState(() => {
+    if (!isSGI) return 'documento';
+    return savedUiState.informeSubTab || 'checklist';
+  });
 
-  // Indicador de autoguardado en tiempo real (evita pérdida en auditorías de +2 horas)
-  const [lastSavedAt, setLastSavedAt] = useState(() => new Date().toLocaleTimeString('es-AR'));
-  const [saveBanner, setSaveBanner] = useState('');
-
-  // Filtros interactivos del Checklist
-  const [capFilter, setCapFilter] = useState('TODOS');
+  // Por defecto abrimos por Capítulo ('4') para fomentar el guardado capítulo por capítulo
+  const [capFilter, setCapFilter] = useState(savedUiState.capFilter || '4');
   const [resFilter, setResFilter] = useState('TODOS');
   const [searchReq, setSearchReq] = useState('');
 
-  // Modal de Firma
+  const [lastSavedAt, setLastSavedAt] = useState(() => new Date().toLocaleTimeString('es-AR'));
+  const [saveBanner, setSaveBanner] = useState('');
   const [sigModal, setSigModal] = useState({ open: false, title: '', currentImage: '', currentName: '', onSave: null });
 
-  // Guardar automáticamente cada cambio de Programa, Informes y pestaña activa en el navegador
+  // Si cambia el rol en el simulador a un sector que no es SGI, forzar vista solo lectura ('documento')
+  useEffect(() => {
+    if (!isSGI) {
+      setInformeSubTab('documento');
+      setIsEditing(false);
+    }
+  }, [isSGI]);
+
+  // Cargar datos compartidos desde Supabase al iniciar para que todos los usuarios vean los PDFs publicados por SGI
+  useEffect(() => {
+    cargarDatosAuditoriasCloud().then(cloud => {
+      if (!cloud) return;
+      if (cloud.programa) {
+        setPrograma(cloud.programa);
+      }
+      if (cloud.informes && cloud.informes.length > 0) {
+        setInformes(prev => {
+          const map = new Map();
+          prev.forEach(item => map.set(item.id, item));
+          cloud.informes.forEach(item => map.set(item.id, item));
+          return Array.from(map.values());
+        });
+      }
+    });
+  }, []);
+
+  // Autoguardado local inmediato en cada cambio
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PROGRAMA, JSON.stringify(programa));
@@ -272,23 +304,63 @@ export default function InternalAudits() {
         viewMode,
         selectedSectorId,
         selectedInformeId,
-        informeSubTab
+        informeSubTab,
+        capFilter
       }));
     } catch (e) {
       console.error('Error guardando estado de sesión UI:', e);
     }
-  }, [activeTab, viewMode, selectedSectorId, selectedInformeId, informeSubTab]);
+  }, [activeTab, viewMode, selectedSectorId, selectedInformeId, informeSubTab, capFilter]);
 
-  const handleManualSave = () => {
+  const selectedInforme = informes.find(i => i.id === selectedInformeId) || null;
+
+  const handleManualSave = async (customMessage = '') => {
     try {
       localStorage.setItem(STORAGE_KEY_PROGRAMA, JSON.stringify(programa));
       localStorage.setItem(STORAGE_KEY_INFORMES, JSON.stringify(informes));
+      if (selectedInforme) {
+        await guardarInformeAuditoriaCloud(selectedInforme);
+      }
       const now = new Date().toLocaleTimeString('es-AR');
       setLastSavedAt(now);
-      setSaveBanner(`✓ Informe guardado de forma segura (${now}). Aunque pasen más de 2 horas o se recargue el navegador, tus datos no se pierden.`);
-      setTimeout(() => setSaveBanner(''), 5000);
+      setSaveBanner(customMessage || `✓ Informe guardado y sincronizado (${now}). Tus datos están protegidos.`);
+      setTimeout(() => setSaveBanner(''), 4500);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  // Guardar un capítulo específico y opcionalmente pasar al siguiente capítulo
+  const guardarCapitulo = async (capId, avanzarSiguiente = false) => {
+    if (!selectedInforme) return;
+    const now = new Date().toLocaleTimeString('es-AR');
+    const capObj = CAPITULOS_ISO.find(c => c.id === capId);
+    const actualizado = {
+      ...selectedInforme,
+      capitulosGuardados: {
+        ...(selectedInforme.capitulosGuardados || {}),
+        [capId]: now
+      }
+    };
+
+    const nuevosInformes = informes.map(inf => inf.id === selectedInforme.id ? actualizado : inf);
+    setInformes(nuevosInformes);
+    localStorage.setItem(STORAGE_KEY_INFORMES, JSON.stringify(nuevosInformes));
+    await guardarInformeAuditoriaCloud(actualizado);
+
+    setLastSavedAt(now);
+    setSaveBanner(`✓ ${capObj ? `${capObj.numero} (${capObj.nombre})` : 'Capítulo'} guardado correctamente a las ${now}.`);
+    setTimeout(() => setSaveBanner(''), 4500);
+
+    if (avanzarSiguiente) {
+      const idx = CAPITULOS_ISO.findIndex(c => c.id === capId);
+      if (idx >= 0 && idx < CAPITULOS_ISO.length - 1) {
+        setCapFilter(CAPITULOS_ISO[idx + 1].id);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setInformeSubTab('hallazgos');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
@@ -401,11 +473,10 @@ export default function InternalAudits() {
   };
 
   // ============================================================================
-  // FUNCIONES INFORMES DE AUDITORÍA (PAU/07 A4 - MOTOR INTEGRADO)
+  // FUNCIONES INFORMES DE AUDITORÍA (SOLO SGI EDITA / TODOS VEN EL INFORME Y PDF)
   // ============================================================================
-  const selectedInforme = informes.find(i => i.id === selectedInformeId) || null;
-
   const crearNuevoInforme = (sectorPreseleccionado = '') => {
+    if (!isSGI) return;
     const nuevoId = `audit-${Date.now()}`;
     const num = String(informes.length + 1).padStart(3, '0');
     const hoy = new Date().toISOString().split('T')[0];
@@ -430,28 +501,35 @@ export default function InternalAudits() {
       nombreFirmaAuditor: 'Sergio Montes',
       firmaResponsableSector: '',
       nombreFirmaResponsable: '',
+      capitulosGuardados: {},
       fortalezas: [''],
       oportunidades: [''],
       evaluaciones: crearEvaluacionesVacias()
     };
     setInformes(prev => [nuevo, ...prev]);
+    guardarInformeAuditoriaCloud(nuevo);
     setSelectedInformeId(nuevoId);
     setInformeSubTab('datos');
+    setCapFilter('4');
     setActiveTab('informes');
   };
 
   const eliminarInforme = (id, e) => {
     e?.stopPropagation();
+    if (!isSGI) return;
     if (!window.confirm('¿Estás seguro de eliminar este informe de auditoría?')) return;
     setInformes(prev => prev.filter(i => i.id !== id));
+    eliminarInformeAuditoriaCloud(id);
     if (selectedInformeId === id) setSelectedInformeId(null);
   };
 
   const updateInformeField = (field, value) => {
+    if (!isSGI) return;
     setInformes(prev => prev.map(inf => inf.id === selectedInformeId ? { ...inf, [field]: value } : inf));
   };
 
   const updateEvaluacion = (codigoReq, field, value) => {
+    if (!isSGI) return;
     setInformes(prev => prev.map(inf => {
       if (inf.id !== selectedInformeId) return inf;
       const actual = inf.evaluaciones?.[codigoReq] || { resultado: 'No Requiere', evidencia: '', detalle: '', oportunidad: '' };
@@ -466,6 +544,7 @@ export default function InternalAudits() {
   };
 
   const marcarCapituloCumple = (cap) => {
+    if (!isSGI) return;
     setInformes(prev => prev.map(inf => {
       if (inf.id !== selectedInformeId) return inf;
       const nuevasEv = { ...inf.evaluaciones };
@@ -482,7 +561,7 @@ export default function InternalAudits() {
   };
 
   const renderEditableText = (value, onChange, placeholder = "", isTextarea = false) => {
-    if (isEditing) {
+    if (isEditing && isSGI) {
       if (isTextarea) {
         return <textarea className="form-control" style={{ width: '100%', fontSize: '13px' }} rows="4" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />;
       }
@@ -499,14 +578,17 @@ export default function InternalAudits() {
       <div className="no-print module-header glass" style={{ padding: '24px', marginBottom: '32px' }}>
         <div>
           <h2 style={{ color: 'var(--accent-color)', margin: '0 0 4px 0', fontSize: '24px' }}>Programa General de Auditorías {programa.year}</h2>
-          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>PAU/07 Anexo 2 — Hacé clic en cualquier sector para abrir su Plan Sectorial (Anexo 3) o iniciar su Auditoría</p>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>PAU/07 Anexo 2 — Hacé clic en cualquier sector para abrir su Plan Sectorial (Anexo 3)</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           {isSGI && (
             <button
               type="button"
               className={`btn ${isEditing ? 'btn-success' : 'btn-secondary'}`}
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                if (isEditing) guardarProgramaAuditoriaCloud(programa);
+                setIsEditing(!isEditing);
+              }}
               style={isEditing ? { backgroundColor: '#16a34a', color: 'white' } : {}}
             >
               {isEditing ? <><Save size={18} /> Guardar Cambios</> : <><Edit2 size={18} /> Activar Edición</>}
@@ -547,7 +629,7 @@ export default function InternalAudits() {
 
         <div style={{ fontWeight: 'bold', backgroundColor: '#f8fafc', padding: '8px 12px', borderLeft: '4px solid var(--accent-color)', color: '#0f172a', marginBottom: '16px', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>AGENDA DETALLADA POR SECTORES</span>
-          {isEditing && <button type="button" className="btn btn-primary no-print" onClick={addSector} style={{ padding: '4px 12px', fontSize: '12px' }}><Plus size={14} /> Agregar Sector</button>}
+          {isEditing && isSGI && <button type="button" className="btn btn-primary no-print" onClick={addSector} style={{ padding: '4px 12px', fontSize: '12px' }}><Plus size={14} /> Agregar Sector</button>}
         </div>
 
         <table className="print-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: '13px' }}>
@@ -578,24 +660,27 @@ export default function InternalAudits() {
                     >
                       Plan A3
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => {
-                        const existing = informes.find(inf => inf.sector.toLowerCase() === s.sector.toLowerCase());
-                        if (existing) {
-                          setSelectedInformeId(existing.id);
-                          setActiveTab('informes');
-                        } else {
-                          crearNuevoInforme(s.sector);
-                        }
-                      }}
-                      style={{ padding: '4px 8px', fontSize: '11px' }}
-                      title="Abrir o Crear Informe de Auditoría (Anexo 4)"
-                    >
-                      Auditar
-                    </button>
-                    {isEditing && (
+                    {isSGI && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => {
+                          const existing = informes.find(inf => inf.sector.toLowerCase() === s.sector.toLowerCase());
+                          if (existing) {
+                            setSelectedInformeId(existing.id);
+                            setInformeSubTab('checklist');
+                            setActiveTab('informes');
+                          } else {
+                            crearNuevoInforme(s.sector);
+                          }
+                        }}
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                        title="Abrir o Crear Plantilla de Auditoría (Solo SGI)"
+                      >
+                        Auditar
+                      </button>
+                    )}
+                    {isEditing && isSGI && (
                       <button type="button" className="btn btn-icon" onClick={() => removeSector(s.id)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={15} /></button>
                     )}
                   </div>
@@ -613,10 +698,14 @@ export default function InternalAudits() {
                 <div style={{ position: 'relative' }}>
                   <img src={programa.firmaJefeSGI} alt="Firma SGI" style={{ maxHeight: '70px', maxWidth: '200px', objectFit: 'contain' }} />
                   {programa.nombreJefeSGI && <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>{programa.nombreJefeSGI}</div>}
-                  {(isEditing || isSGI) && (
+                  {isSGI && (
                     <button
                       type="button"
-                      onClick={() => openSignatureModal('Firma Jefe de SGI', programa.firmaJefeSGI, programa.nombreJefeSGI, (img, nom) => setPrograma({ ...programa, firmaJefeSGI: img, nombreJefeSGI: nom }))}
+                      onClick={() => openSignatureModal('Firma Jefe de SGI', programa.firmaJefeSGI, programa.nombreJefeSGI, (img, nom) => {
+                        const next = { ...programa, firmaJefeSGI: img, nombreJefeSGI: nom };
+                        setPrograma(next);
+                        guardarProgramaAuditoriaCloud(next);
+                      })}
                       className="no-print"
                       style={{ position: 'absolute', top: '-8px', right: '-24px', color: 'var(--accent-color)', background: 'white', border: '1px solid #cbd5e1', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}
                       title="Editar Firma"
@@ -625,11 +714,15 @@ export default function InternalAudits() {
                     </button>
                   )}
                 </div>
-              ) : (isEditing || isSGI) ? (
+              ) : isSGI ? (
                 <button
                   type="button"
                   className="btn btn-secondary no-print"
-                  onClick={() => openSignatureModal('Firma Jefe de SGI', programa.firmaJefeSGI, programa.nombreJefeSGI, (img, nom) => setPrograma({ ...programa, firmaJefeSGI: img, nombreJefeSGI: nom }))}
+                  onClick={() => openSignatureModal('Firma Jefe de SGI', programa.firmaJefeSGI, programa.nombreJefeSGI, (img, nom) => {
+                    const next = { ...programa, firmaJefeSGI: img, nombreJefeSGI: nom };
+                    setPrograma(next);
+                    guardarProgramaAuditoriaCloud(next);
+                  })}
                   style={{ fontSize: '12px', padding: '8px 14px', backgroundColor: '#f8fafc', border: '1px dashed #94a3b8', color: '#334155' }}
                 >
                   <PenTool size={14} /> Firmar o Subir Imagen
@@ -648,10 +741,14 @@ export default function InternalAudits() {
                 <div style={{ position: 'relative' }}>
                   <img src={programa.firmaGerenteGeneral} alt="Firma GG" style={{ maxHeight: '70px', maxWidth: '200px', objectFit: 'contain' }} />
                   {programa.nombreGerenteGeneral && <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>{programa.nombreGerenteGeneral}</div>}
-                  {(isEditing || isSGI) && (
+                  {isSGI && (
                     <button
                       type="button"
-                      onClick={() => openSignatureModal('Firma Gerente General', programa.firmaGerenteGeneral, programa.nombreGerenteGeneral, (img, nom) => setPrograma({ ...programa, firmaGerenteGeneral: img, nombreGerenteGeneral: nom }))}
+                      onClick={() => openSignatureModal('Firma Gerente General', programa.firmaGerenteGeneral, programa.nombreGerenteGeneral, (img, nom) => {
+                        const next = { ...programa, firmaGerenteGeneral: img, nombreGerenteGeneral: nom };
+                        setPrograma(next);
+                        guardarProgramaAuditoriaCloud(next);
+                      })}
                       className="no-print"
                       style={{ position: 'absolute', top: '-8px', right: '-24px', color: 'var(--accent-color)', background: 'white', border: '1px solid #cbd5e1', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}
                       title="Editar Firma"
@@ -660,11 +757,15 @@ export default function InternalAudits() {
                     </button>
                   )}
                 </div>
-              ) : (isEditing || isSGI) ? (
+              ) : isSGI ? (
                 <button
                   type="button"
                   className="btn btn-secondary no-print"
-                  onClick={() => openSignatureModal('Firma Gerente General', programa.firmaGerenteGeneral, programa.nombreGerenteGeneral, (img, nom) => setPrograma({ ...programa, firmaGerenteGeneral: img, nombreGerenteGeneral: nom }))}
+                  onClick={() => openSignatureModal('Firma Gerente General', programa.firmaGerenteGeneral, programa.nombreGerenteGeneral, (img, nom) => {
+                    const next = { ...programa, firmaGerenteGeneral: img, nombreGerenteGeneral: nom };
+                    setPrograma(next);
+                    guardarProgramaAuditoriaCloud(next);
+                  })}
                   style={{ fontSize: '12px', padding: '8px 14px', backgroundColor: '#f8fafc', border: '1px dashed #94a3b8', color: '#334155' }}
                 >
                   <PenTool size={14} /> Firmar o Subir Imagen
@@ -699,7 +800,15 @@ export default function InternalAudits() {
           <div style={{ display: 'flex', gap: '12px' }}>
             <button type="button" className="btn btn-secondary" onClick={closeSectorial} disabled={isEditing}><ChevronLeft size={18} /> Volver al Programa</button>
             {isSGI && (
-              <button type="button" className={`btn ${isEditing ? 'btn-success' : 'btn-secondary'}`} onClick={() => setIsEditing(!isEditing)} style={isEditing ? { backgroundColor: '#16a34a', color: 'white' } : {}}>
+              <button
+                type="button"
+                className={`btn ${isEditing ? 'btn-success' : 'btn-secondary'}`}
+                onClick={() => {
+                  if (isEditing) guardarProgramaAuditoriaCloud(programa);
+                  setIsEditing(!isEditing);
+                }}
+                style={isEditing ? { backgroundColor: '#16a34a', color: 'white' } : {}}
+              >
                 {isEditing ? <><Save size={18} /> Guardar Cambios</> : <><Edit2 size={18} /> Activar Edición</>}
               </button>
             )}
@@ -755,7 +864,7 @@ export default function InternalAudits() {
 
           <div style={{ backgroundColor: '#0f172a', color: 'white', padding: '8px', fontWeight: 'bold', fontSize: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ marginLeft: '12px' }}>DETALLE DEL PLAN DE LA AUDITORÍA</span>
-            {isEditing && <button type="button" className="btn btn-primary no-print" onClick={addProceso} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--accent-color)' }}><Plus size={14} /> Agregar Proceso</button>}
+            {isEditing && isSGI && <button type="button" className="btn btn-primary no-print" onClick={addProceso} style={{ padding: '4px 10px', fontSize: '12px', background: 'var(--accent-color)' }}><Plus size={14} /> Agregar Proceso</button>}
           </div>
 
           <table className="print-table" style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #cbd5e1', fontSize: '12px', marginBottom: '32px' }}>
@@ -765,7 +874,7 @@ export default function InternalAudits() {
                 <th colSpan="2" style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#475569' }}>REQUISITO NORMATIVO</th>
                 <th rowSpan="2" style={{ border: '1px solid #cbd5e1', padding: '10px', width: '30%', color: '#475569' }}>DOCUMENTOS APLICABLES</th>
                 <th rowSpan="2" style={{ border: '1px solid #cbd5e1', padding: '10px', width: '20%', color: '#475569' }}>PARTICIPAN</th>
-                {isEditing && <th rowSpan="2" className="no-print" style={{ border: '1px solid #cbd5e1', width: '5%' }}>X</th>}
+                {isEditing && isSGI && <th rowSpan="2" className="no-print" style={{ border: '1px solid #cbd5e1', width: '5%' }}>X</th>}
               </tr>
               <tr style={{ backgroundColor: '#f1f5f9' }}>
                 <th style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#475569' }}>ISO 9001</th>
@@ -780,7 +889,7 @@ export default function InternalAudits() {
                   <td style={{ border: '1px solid #cbd5e1', padding: '10px', textAlign: 'center', fontWeight: 'bold' }}>{renderEditableText(proc.req39001, (v) => updateProceso(idx, 'req39001', v), "4.1")}</td>
                   <td style={{ border: '1px solid #cbd5e1', padding: '10px', whiteSpace: 'pre-wrap' }}>{renderEditableText(proc.docs, (v) => updateProceso(idx, 'docs', v), "Documentos...", true)}</td>
                   <td style={{ border: '1px solid #cbd5e1', padding: '10px', whiteSpace: 'pre-wrap' }}>{renderEditableText(proc.participantes, (v) => updateProceso(idx, 'participantes', v), "Participantes...", true)}</td>
-                  {isEditing && (
+                  {isEditing && isSGI && (
                     <td className="no-print" style={{ border: '1px solid #cbd5e1', textAlign: 'center' }}>
                       <button type="button" className="btn btn-icon" onClick={() => removeProceso(idx)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}><Trash2 size={16} /></button>
                     </td>
@@ -799,7 +908,7 @@ export default function InternalAudits() {
                   <div style={{ marginBottom: '6px', textAlign: 'center', position: 'relative' }}>
                     <img src={p.firmaAuditor} alt="Firma Auditor" style={{ maxHeight: '65px', maxWidth: '220px', objectFit: 'contain' }} />
                     {p.nombreAuditor && <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>{p.nombreAuditor}</div>}
-                    {(isEditing || isSGI) && (
+                    {isSGI && (
                       <button
                         type="button"
                         onClick={() => openSignatureModal('Firma Auditor Responsable', p.firmaAuditor, p.nombreAuditor, (img, nom) => {
@@ -813,7 +922,7 @@ export default function InternalAudits() {
                       </button>
                     )}
                   </div>
-                ) : (isEditing || isSGI) ? (
+                ) : isSGI ? (
                   <button
                     type="button"
                     className="btn btn-secondary no-print"
@@ -836,7 +945,7 @@ export default function InternalAudits() {
   };
 
   // ============================================================================
-  // VISTA 2: EJECUCIÓN E INFORMES DE AUDITORÍA (INTEGRACIÓN DE AUDITORIAS.GIT)
+  // VISTA 2: LISTADO DE INFORMES DE AUDITORÍA
   // ============================================================================
   const renderListaInformes = () => {
     let totalCumple = 0;
@@ -856,15 +965,26 @@ export default function InternalAudits() {
         <div className="module-header glass" style={{ padding: '24px', marginBottom: '24px' }}>
           <div>
             <h2 style={{ color: 'var(--accent-color)', margin: '0 0 4px 0', fontSize: '24px' }}>
-              Ejecución e Informes de Auditoría Interna (PAU/07 Anexo 4)
+              {isSGI ? 'Ejecución e Informes de Auditoría Interna (PAU/07 Anexo 4)' : 'Informes de Auditoría Interna Publicados (PAU/07 Anexo 4)'}
             </h2>
             <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '13.5px' }}>
-              Autoguardado instantáneo en cada clic/tecla — diseñado para auditorías extensas (+2 hs) sin riesgo de desconexión ni pérdida al generar el PDF.
+              {isSGI
+                ? 'Modo Administrador SGI: Plantilla de carga interactiva habilitada con guardado capítulo por capítulo.'
+                : 'Modo Consulta Sectorial: Visualización de informes oficiales A4 y descarga directa de PDFs.'}
             </p>
           </div>
-          <button type="button" className="btn btn-primary" onClick={() => crearNuevoInforme()}>
-            <Plus size={18} /> Nueva Auditoría Interna
-          </button>
+          {isSGI ? (
+            <button type="button" className="btn btn-primary" onClick={() => crearNuevoInforme()}>
+              <Plus size={18} /> Nueva Auditoría Interna
+            </button>
+          ) : (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px',
+              borderRadius: '999px', background: '#f1f5f9', color: '#475569', fontSize: '12.5px', fontWeight: 600
+            }}>
+              <Lock size={14} /> Plantilla de carga exclusiva SGI • Informes PDF públicos
+            </span>
+          )}
         </div>
 
         {/* KPIs Globales */}
@@ -872,7 +992,7 @@ export default function InternalAudits() {
           <div className="glass" style={{ padding: '18px 20px', borderLeft: '4px solid var(--accent-color)' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Informes Registrados</div>
             <div style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', marginTop: '4px' }}>{informes.length}</div>
-            <div style={{ fontSize: '12px', color: '#64748b' }}>Sectores auditados / en curso</div>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>Disponibles para consulta y PDF</div>
           </div>
           <div className="glass" style={{ padding: '18px 20px', borderLeft: '4px solid #16a34a' }}>
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Requisitos conformes</div>
@@ -899,7 +1019,10 @@ export default function InternalAudits() {
               <div
                 key={inf.id}
                 className="glass"
-                onClick={() => { setSelectedInformeId(inf.id); setInformeSubTab('checklist'); }}
+                onClick={() => {
+                  setSelectedInformeId(inf.id);
+                  setInformeSubTab(isSGI ? 'checklist' : 'documento');
+                }}
                 style={{
                   padding: '22px', cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                   border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
@@ -930,17 +1053,6 @@ export default function InternalAudits() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={14} /> Auditor: <strong>{inf.auditor_responsable || '-'}</strong></div>
                   </div>
 
-                  {/* Barra de avance del checklist */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
-                      <span>Requisitos evaluados: {res.evaluados} / {res.totalRequisitos}</span>
-                      <span>{res.porcentajeAvance}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '7px', backgroundColor: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
-                      <div style={{ width: `${res.porcentajeAvance}%`, height: '100%', backgroundColor: 'var(--accent-color)' }} />
-                    </div>
-                  </div>
-
                   {/* Badges de resultados */}
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: '#dcfce7', color: '#166534' }}>
@@ -961,7 +1073,7 @@ export default function InternalAudits() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-primary"
                     onClick={(e) => { e.stopPropagation(); generarPDFInformeAuditoria(inf); }}
                     style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
@@ -978,7 +1090,9 @@ export default function InternalAudits() {
                         <Trash2 size={16} />
                       </button>
                     )}
-                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--accent-color)' }}>Abrir Auditoría →</span>
+                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--accent-color)' }}>
+                      {isSGI ? 'Editar / Ver Informe →' : 'Ver Informe A4 →'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -990,11 +1104,17 @@ export default function InternalAudits() {
   };
 
   // ============================================================================
-  // EDITOR / EJECUTOR INTERACTIVO DE UN INFORME DE AUDITORÍA
+  // DETALLE DE UN INFORME:
+  // - SI ES SGI: Ve la plantilla por capítulos + botón Guardar Capítulo + Vista A4
+  // - SI NO ES SGI: Ve únicamente el Informe Oficial A4 y el botón Descargar PDF
   // ============================================================================
   const renderDetalleInforme = () => {
     if (!selectedInforme) return null;
     const res = calcularResumenInforme(selectedInforme);
+    const activeTabToRender = isSGI ? informeSubTab : 'documento';
+    const currentCapObj = CAPITULOS_ISO.find(c => c.id === capFilter);
+    const currentCapIdx = CAPITULOS_ISO.findIndex(c => c.id === capFilter);
+    const nextCapObj = currentCapIdx >= 0 && currentCapIdx < CAPITULOS_ISO.length - 1 ? CAPITULOS_ISO[currentCapIdx + 1] : null;
 
     const requisitosFiltrados = REQUISITOS_NORMATIVOS.filter(req => {
       const ev = selectedInforme.evaluaciones?.[req.codigo] || { resultado: 'No Requiere' };
@@ -1015,7 +1135,6 @@ export default function InternalAudits() {
 
     return (
       <div className="animate-fade-in">
-        {/* Banner de confirmación si el usuario toca "Guardar Informe" */}
         {saveBanner && (
           <div className="no-print" style={{
             backgroundColor: '#dcfce7', border: '1px solid #86efac', color: '#166534',
@@ -1031,7 +1150,7 @@ export default function InternalAudits() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <button type="button" className="btn btn-secondary" onClick={() => setSelectedInformeId(null)} style={{ padding: '8px 12px' }}>
-                <ChevronLeft size={18} /> Volver
+                <ChevronLeft size={18} /> Volver a Informes
               </button>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1039,13 +1158,15 @@ export default function InternalAudits() {
                   <span style={{ fontSize: '12px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px', background: '#e0f2fe', color: '#0369a1' }}>
                     {selectedInforme.codigoInforme}
                   </span>
-                  <span style={{
-                    fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
-                    background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
-                    display: 'inline-flex', alignItems: 'center', gap: '5px'
-                  }}>
-                    <ShieldCheck size={13} /> Autoguardado activo ({lastSavedAt})
-                  </span>
+                  {isSGI && (
+                    <span style={{
+                      fontSize: '11.5px', fontWeight: 700, padding: '3px 10px', borderRadius: '999px',
+                      background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0',
+                      display: 'inline-flex', alignItems: 'center', gap: '5px'
+                    }}>
+                      <ShieldCheck size={13} /> Autoguardado ({lastSavedAt})
+                    </span>
+                  )}
                 </div>
                 <p style={{ margin: '3px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>
                   Fecha: {selectedInforme.fechas_auditoria} • Lugar: {selectedInforme.lugar} • Auditor: {selectedInforme.auditor_responsable}
@@ -1054,80 +1175,83 @@ export default function InternalAudits() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <select
-                value={selectedInforme.estado}
-                onChange={(e) => updateInformeField('estado', e.target.value)}
-                style={{
-                  padding: '8px 12px', borderRadius: '8px', fontWeight: 700, fontSize: '13px',
-                  border: '1px solid #cbd5e1', background: selectedInforme.estado === 'Cerrada' ? '#dcfce7' : '#fef3c7',
-                  color: selectedInforme.estado === 'Cerrada' ? '#166534' : '#92400e'
-                }}
-              >
-                <option value="En Curso">Estado: En Curso</option>
-                <option value="Cerrada">Estado: Cerrada / Finalizada</option>
-              </select>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleManualSave}
-                style={{ backgroundColor: '#16a34a', color: 'white', borderColor: '#16a34a' }}
-              >
-                <Save size={16} /> Guardar Informe
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setInformeSubTab('documento')}>
-                <Eye size={16} /> Vista A4
-              </button>
+              {isSGI && (
+                <>
+                  <select
+                    value={selectedInforme.estado}
+                    onChange={(e) => updateInformeField('estado', e.target.value)}
+                    style={{
+                      padding: '8px 12px', borderRadius: '8px', fontWeight: 700, fontSize: '13px',
+                      border: '1px solid #cbd5e1', background: selectedInforme.estado === 'Cerrada' ? '#dcfce7' : '#fef3c7',
+                      color: selectedInforme.estado === 'Cerrada' ? '#166534' : '#92400e'
+                    }}
+                  >
+                    <option value="En Curso">Estado: En Curso</option>
+                    <option value="Cerrada">Estado: Cerrada / Finalizada</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleManualSave()}
+                    style={{ backgroundColor: '#16a34a', color: 'white', borderColor: '#16a34a' }}
+                  >
+                    <Save size={16} /> Guardar Todo el Informe
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => {
-                  handleManualSave();
+                  if (isSGI) handleManualSave();
                   generarPDFInformeAuditoria(selectedInforme);
                 }}
               >
-                <Download size={16} /> Generar y Descargar PDF
+                <Download size={16} /> Descargar PDF del Informe
               </button>
             </div>
           </div>
 
-          {/* Sub-pestañas del motor de auditoría */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {[
-                { id: 'datos', label: '1. Datos y Equipo Auditor', icon: <Building2 size={15} /> },
-                { id: 'checklist', label: `2. Checklist Normativo (${res.evaluados}/${res.totalRequisitos})`, icon: <ClipboardCheck size={15} /> },
-                { id: 'hallazgos', label: `3. Fortalezas, OM y Firmas (${res.fortalezasCount + res.oportunidadesCount})`, icon: <Sparkles size={15} /> },
-                { id: 'documento', label: '4. Informe Oficial A4 (PAU/07 A4)', icon: <FileText size={15} /> }
-              ].map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setInformeSubTab(t.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px',
-                    border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
-                    background: informeSubTab === t.id ? 'var(--accent-color)' : '#f1f5f9',
-                    color: informeSubTab === t.id ? 'white' : '#475569'
-                  }}
-                >
-                  {t.icon} {t.label}
-                </button>
-              ))}
-            </div>
+          {/* Sub-pestañas de la Plantilla: SOLO VISIBLES PARA ADMIN SGI */}
+          {isSGI && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #e2e8f0', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'datos', label: '1. Datos y Equipo Auditor', icon: <Building2 size={15} /> },
+                  { id: 'checklist', label: `2. Checklist por Capítulos (${res.evaluados}/${res.totalRequisitos})`, icon: <ClipboardCheck size={15} /> },
+                  { id: 'hallazgos', label: `3. Fortalezas, OM y Firmas (${res.fortalezasCount + res.oportunidadesCount})`, icon: <Sparkles size={15} /> },
+                  { id: 'documento', label: '4. Vista Previa Informe Oficial A4', icon: <FileText size={15} /> }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setInformeSubTab(t.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', borderRadius: '8px',
+                      border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px',
+                      background: activeTabToRender === t.id ? 'var(--accent-color)' : '#f1f5f9',
+                      color: activeTabToRender === t.id ? 'white' : '#475569'
+                    }}
+                  >
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
 
-            <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: 700 }}>
-              <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#dcfce7', color: '#166534' }}>Cumple: {res.cumple}</span>
-              <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fef3c7', color: '#92400e' }}>OB: {res.ob}</span>
-              <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fee2e2', color: '#991b1b' }}>NC: {res.nc}</span>
+              <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: 700 }}>
+                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#dcfce7', color: '#166534' }}>Cumple: {res.cumple}</span>
+                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fef3c7', color: '#92400e' }}>OB: {res.ob}</span>
+                <span style={{ padding: '4px 10px', borderRadius: '6px', background: '#fee2e2', color: '#991b1b' }}>NC: {res.nc}</span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* SUB-PESTAÑA 1: DATOS GENERALES Y EQUIPO AUDITOR */}
-        {informeSubTab === 'datos' && (
+        {/* SUB-PESTAÑA 1: DATOS GENERALES Y EQUIPO AUDITOR (SOLO SGI) */}
+        {isSGI && activeTabToRender === 'datos' && (
           <div className="glass" style={{ padding: '28px' }}>
             <h3 style={{ margin: '0 0 18px 0', color: '#0f172a', fontSize: '17px', borderLeft: '4px solid var(--accent-color)', paddingLeft: '10px' }}>
-              1. Información General de la Auditoría
+              1. Información General de la Auditoría (Exclusivo SGI)
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '28px' }}>
               <div>
@@ -1253,57 +1377,108 @@ export default function InternalAudits() {
               </div>
             </div>
 
-            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-primary" onClick={() => setInformeSubTab('checklist')}>
-                Continuar al Checklist Normativo →
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  handleManualSave('✓ Datos Generales y Equipo Auditor guardados.');
+                  setCapFilter('4');
+                  setInformeSubTab('checklist');
+                }}
+              >
+                <Save size={16} /> Guardar Datos e Ir al Capítulo 4 →
               </button>
             </div>
           </div>
         )}
 
-        {/* SUB-PESTAÑA 2: CHECKLIST NORMATIVO INTEGRADO (28 REQUISITOS DE AUDITORIAS.GIT) */}
-        {informeSubTab === 'checklist' && (
+        {/* SUB-PESTAÑA 2: CHECKLIST NORMATIVO CON GUARDADO POR CAPÍTULO (SOLO SGI) */}
+        {isSGI && activeTabToRender === 'checklist' && (
           <div>
-            {/* Barra de Filtros por Capítulo ISO y Buscador */}
+            {/* Navegador de Capítulos con estado de Guardado por Capítulo */}
             <div className="glass" style={{ padding: '18px 22px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {[
-                    { id: 'TODOS', label: 'Todos los Capítulos (28)' },
-                    { id: '4', label: 'Cap. 4 Contexto' },
-                    { id: '5', label: 'Cap. 5 Liderazgo' },
-                    { id: '6', label: 'Cap. 6 Planificación' },
-                    { id: '7', label: 'Cap. 7 Apoyo' },
-                    { id: '8', label: 'Cap. 8 Operación' },
-                    { id: '9', label: 'Cap. 9 Desempeño' },
-                    { id: '10', label: 'Cap. 10 Mejora' }
-                  ].map(c => (
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', marginBottom: '10px', textTransform: 'uppercase' }}>
+                Seleccioná el Capítulo Normativo a evaluar y guardar paso a paso:
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                {CAPITULOS_ISO.map(c => {
+                  const stats = res.porCapitulo?.[c.id] || { total: 0, evaluados: 0 };
+                  const savedTime = selectedInforme.capitulosGuardados?.[c.id];
+                  const isSelected = capFilter === c.id;
+                  return (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => setCapFilter(c.id)}
                       style={{
-                        padding: '6px 12px', borderRadius: '999px', border: '1px solid',
-                        borderColor: capFilter === c.id ? 'var(--accent-color)' : '#cbd5e1',
-                        background: capFilter === c.id ? '#e0f2fe' : 'white',
-                        color: capFilter === c.id ? '#0369a1' : '#475569',
-                        fontWeight: 600, fontSize: '12px', cursor: 'pointer'
+                        padding: '8px 14px', borderRadius: '10px', border: '2px solid',
+                        borderColor: isSelected ? 'var(--accent-color)' : savedTime ? '#86efac' : '#cbd5e1',
+                        background: isSelected ? '#e0f2fe' : savedTime ? '#f0fdf4' : 'white',
+                        color: isSelected ? '#0369a1' : '#1e293b',
+                        fontWeight: 700, fontSize: '12.5px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '6px'
                       }}
                     >
-                      {c.label}
+                      <span>{c.corto}</span>
+                      <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '999px', background: 'rgba(15,23,42,0.07)' }}>
+                        {stats.evaluados}/{stats.total}
+                      </span>
+                      {savedTime && <CheckCircle2 size={14} color="#16a34a" title={`Capítulo guardado (${savedTime})`} />}
                     </button>
-                  ))}
-                </div>
-
+                  );
+                })}
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  onClick={() => marcarCapituloCumple(capFilter)}
-                  style={{ fontSize: '12px', padding: '6px 12px' }}
-                  title="Marca como 'Cumple' los requisitos de la vista actual que aún estén como 'No Requiere'"
+                  onClick={() => setCapFilter('TODOS')}
+                  style={{
+                    padding: '8px 14px', borderRadius: '10px', border: '1px solid',
+                    borderColor: capFilter === 'TODOS' ? 'var(--accent-color)' : '#cbd5e1',
+                    background: capFilter === 'TODOS' ? '#e0f2fe' : '#f8fafc',
+                    color: capFilter === 'TODOS' ? '#0369a1' : '#64748b',
+                    fontWeight: 600, fontSize: '12px', cursor: 'pointer'
+                  }}
                 >
-                  <CheckCircle2 size={14} /> Marcar pendientes del filtro como Cumple
+                  Ver Todos (28)
                 </button>
+              </div>
+
+              {/* Barra de acciones del Capítulo Actual */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px',
+                padding: '12px 16px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '14px'
+              }}>
+                <div>
+                  <strong style={{ fontSize: '14px', color: '#0f172a' }}>
+                    {currentCapObj ? `${currentCapObj.numero}: ${currentCapObj.nombre}` : 'Todos los Capítulos (4 al 10)'}
+                  </strong>
+                  {currentCapObj && selectedInforme.capitulosGuardados?.[currentCapObj.id] && (
+                    <span style={{ marginLeft: '10px', fontSize: '12px', color: '#15803d', fontWeight: 600 }}>
+                      ✓ Último guardado de este capítulo: {selectedInforme.capitulosGuardados[currentCapObj.id]}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => marcarCapituloCumple(capFilter)}
+                    style={{ fontSize: '12px', padding: '6px 12px' }}
+                  >
+                    <CheckCircle2 size={14} /> Marcar pendientes del capítulo como Cumple
+                  </button>
+                  {currentCapObj && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => guardarCapitulo(currentCapObj.id, false)}
+                      style={{ fontSize: '12px', padding: '6px 14px', backgroundColor: '#16a34a' }}
+                    >
+                      <Save size={14} /> Guardar {currentCapObj.numero}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1457,11 +1632,62 @@ export default function InternalAudits() {
                 );
               })}
             </div>
+
+            {/* Pie del Capítulo: Botón grande para Guardar por Capítulo y Avanzar */}
+            <div className="glass" style={{
+              marginTop: '20px', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px',
+              background: '#f0fdf4', border: '1px solid #bbf7d0'
+            }}>
+              <div>
+                <div style={{ fontWeight: 700, color: '#166534', fontSize: '14px' }}>
+                  {currentCapObj ? `Fin del ${currentCapObj.numero} (${currentCapObj.nombre})` : 'Fin del listado de requisitos'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#15803d' }}>
+                  Guardá este capítulo antes de pasar al siguiente para asegurar tu avance en la nube y en tu navegador.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {currentCapObj && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => guardarCapitulo(currentCapObj.id, false)}
+                    style={{ background: 'white', borderColor: '#16a34a', color: '#166534', fontWeight: 700 }}
+                  >
+                    <Save size={16} /> Guardar {currentCapObj.numero}
+                  </button>
+                )}
+                {currentCapObj ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => guardarCapitulo(currentCapObj.id, true)}
+                    style={{ backgroundColor: '#16a34a', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Save size={16} />
+                    {nextCapObj
+                      ? `Guardar ${currentCapObj.numero} y Pasar a ${nextCapObj.corto}`
+                      : `Guardar ${currentCapObj.numero} e Ir a Fortalezas y Cierre`}
+                    <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => { handleManualSave(); setInformeSubTab('hallazgos'); }}
+                    style={{ backgroundColor: '#16a34a' }}
+                  >
+                    <Save size={16} /> Guardar Todos e Ir a Fortalezas y Cierre →
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* SUB-PESTAÑA 3: FORTALEZAS, OPORTUNIDADES DE MEJORA, CONCLUSIONES Y FIRMAS */}
-        {informeSubTab === 'hallazgos' && (
+        {/* SUB-PESTAÑA 3: FORTALEZAS, OPORTUNIDADES DE MEJORA, CONCLUSIONES Y FIRMAS (SOLO SGI) */}
+        {isSGI && activeTabToRender === 'hallazgos' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '20px' }}>
               {/* Fortalezas (FO) */}
@@ -1630,16 +1856,35 @@ export default function InternalAudits() {
                   </button>
                 </div>
               </div>
+
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    handleManualSave('✓ Cierre, Fortalezas y Firmas guardados. Informe listo para exportar.');
+                    setInformeSubTab('documento');
+                  }}
+                  style={{ backgroundColor: '#16a34a' }}
+                >
+                  <Save size={16} /> Guardar Cierre y Ver Informe Oficial A4 →
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* SUB-PESTAÑA 4: DOCUMENTO OFICIAL IMPRIMIBLE A4 (PAU/07 ANEXO 4) */}
-        {informeSubTab === 'documento' && (
+        {/* SUB-PESTAÑA 4: DOCUMENTO OFICIAL IMPRIMIBLE A4 Y PDF (VISIBLE PARA TODOS LOS USUARIOS) */}
+        {activeTabToRender === 'documento' && (
           <div className="printable-doc" style={{ background: 'white', padding: '45px 55px', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', maxWidth: '1000px', margin: '0 auto', border: '1px solid #e2e8f0', color: '#1e293b' }}>
-            <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginBottom: '20px' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir Hoja A4</button>
-              <button type="button" className="btn btn-primary" onClick={() => { handleManualSave(); generarPDFInformeAuditoria(selectedInforme); }}><Download size={16} /> Exportar PDF Directo</button>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12.5px', color: '#64748b', fontWeight: 600 }}>
+                Documento oficial de lectura e impresión para todos los sectores
+              </span>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => window.print()}><Printer size={16} /> Imprimir Hoja A4</button>
+                <button type="button" className="btn btn-primary" onClick={() => { if (isSGI) handleManualSave(); generarPDFInformeAuditoria(selectedInforme); }}><Download size={16} /> Descargar PDF Oficial</button>
+              </div>
             </div>
 
             <div className="print-header" style={{ display: 'flex', border: '1px solid #000', marginBottom: '28px' }}>
@@ -1880,7 +2125,11 @@ export default function InternalAudits() {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={() => { setSelectedInformeId(h.informeId); setInformeSubTab('checklist'); setActiveTab('informes'); }}
+                      onClick={() => {
+                        setSelectedInformeId(h.informeId);
+                        setInformeSubTab(isSGI ? 'checklist' : 'documento');
+                        setActiveTab('informes');
+                      }}
                       style={{ padding: '5px 10px', fontSize: '11.5px' }}
                     >
                       Ver Informe
@@ -1918,7 +2167,7 @@ export default function InternalAudits() {
               fontWeight: 700, cursor: 'pointer', fontSize: '14.5px', display: 'flex', alignItems: 'center', gap: '8px'
             }}
           >
-            <ClipboardCheck size={18} /> Ejecución e Informes de Auditoría (PAU/07 A4)
+            <ClipboardCheck size={18} /> {isSGI ? 'Ejecución e Informes de Auditoría (PAU/07 A4)' : 'Informes de Auditoría PDF (PAU/07 A4)'}
           </button>
 
           <button
