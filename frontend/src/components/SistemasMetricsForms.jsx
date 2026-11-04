@@ -29,28 +29,30 @@ const TIPOS = {
     headers: ['Sitio', 'Realizados', 'Planificados', 'Indicador', 'Meta'],
   },
   pmp: {
-    label: 'Cumplimiento PMP (General)',
+    label: 'Cumplimiento PMP',
     campos: [
+      { id: 'sitio', label: 'Sitio de la Autopista', type: 'select', options: SITIOS },
       { id: 'prev_realizados', label: 'Cant. trabajos de mantenimiento preventivos realizados', type: 'number' },
       { id: 'prev_planificados', label: 'Cant. trabajos de mantenimiento preventivos planificados', type: 'number' },
     ],
     columnas: (d) => {
       const ind = pct(d.prev_realizados, d.prev_planificados);
-      return [fmtNum(d.prev_realizados), fmtNum(d.prev_planificados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 75), 'Meta ≥ 75%'];
+      return [d.sitio || '-', fmtNum(d.prev_realizados), fmtNum(d.prev_planificados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 75), 'Meta ≥ 75%'];
     },
-    headers: ['Realizados', 'Planificados', 'Indicador', 'Meta'],
+    headers: ['Sitio', 'Realizados', 'Planificados', 'Indicador', 'Meta'],
   },
   tickets: {
     label: 'Gestión de Ticket',
     campos: [
+      { id: 'sitio', label: 'Sitio de la Autopista', type: 'select', options: SITIOS },
       { id: 'tickets_realizados', label: 'Cantidad de tickets realizados', type: 'number' },
       { id: 'tickets_solicitados', label: 'Cantidad de tickets solicitados', type: 'number' },
     ],
     columnas: (d) => {
       const ind = pct(d.tickets_realizados, d.tickets_solicitados);
-      return [fmtNum(d.tickets_realizados), fmtNum(d.tickets_solicitados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 80), 'Meta ≥ 80%'];
+      return [d.sitio || '-', fmtNum(d.tickets_realizados), fmtNum(d.tickets_solicitados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 80), 'Meta ≥ 80%'];
     },
-    headers: ['Realizados', 'Solicitados', 'Indicador', 'Meta'],
+    headers: ['Sitio', 'Realizados', 'Solicitados', 'Indicador', 'Meta'],
   },
 };
 
@@ -122,7 +124,7 @@ const SistemasMetricsForms = () => {
 
   const config = TIPOS[tipoActivo];
 
-  const displayedRows = tipoActivo === 'sitio' && filtroSitio
+  const displayedRows = filtroSitio
     ? rows.filter(r => r.data?.sitio === filtroSitio)
     : rows;
 
@@ -184,7 +186,7 @@ const SistemasMetricsForms = () => {
       </div>
 
       <div className="glass table-container animate-fade-in delay-1" style={{ overflowX: 'auto' }}>
-        {tipoActivo === 'sitio' && rows.length > 0 && (
+        {rows.length > 0 && (
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary, #475569)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Filter size={15} /> Filtrar tabla por sitio:

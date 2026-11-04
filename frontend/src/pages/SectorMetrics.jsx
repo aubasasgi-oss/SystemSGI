@@ -339,6 +339,9 @@ const kpisBySector = {
       {
         id: 'sis_tickets',
         title: 'Gestion de Ticket (Meta ≥ 80%)',
+        selects: [
+          {id: 'sitio', label: 'Sitio', options: ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui', 'Samborombón', 'Maipú', 'La Huella', 'Mar Chiquita', 'Gral. Madariaga']}
+        ],
         inputs: [
           {id: 'tickets_realizados', label: 'Cantidad de tickets realizados'},
           {id: 'tickets_solicitados', label: 'Cantidad de tickets solicitados'}

@@ -1835,10 +1835,13 @@ const Dashboard = () => {
 
     // Tickets
     const ticketRows = sistemasMetrics.filter(r => r.tipo === 'tickets');
+    const ticketFiltered = sistemasSitio === 'Seleccionar todo'
+      ? ticketRows
+      : ticketRows.filter(r => r.sitio === sistemasSitio);
 
     // Gauges (filtrados por Mes y Sitio)
     const pmpGauges = sistemasMes ? pmpFiltered.filter(r => r.month === sistemasMes) : pmpFiltered;
-    const ticketGauges = sistemasMes ? ticketRows.filter(r => r.month === sistemasMes) : ticketRows;
+    const ticketGauges = sistemasMes ? ticketFiltered.filter(r => r.month === sistemasMes) : ticketFiltered;
 
     const prevPlanificados = pmpGauges.reduce((a, r) => a + (Number(r.prev_planificados) || 0), 0);
     const prevRealizados = pmpGauges.reduce((a, r) => a + (Number(r.prev_realizados) || 0), 0);
@@ -1851,7 +1854,7 @@ const Dashboard = () => {
     // Charts (filtrado por Sitio, mostrando todos los meses con datos)
     const monthlyData = MESES.map(m => {
       const pmpMonth = pmpFiltered.filter(r => r.month === m);
-      const ticketMonth = ticketRows.filter(r => r.month === m);
+      const ticketMonth = ticketFiltered.filter(r => r.month === m);
 
       const prPlan = pmpMonth.reduce((a, r) => a + (Number(r.prev_planificados) || 0), 0);
       const prReal = pmpMonth.reduce((a, r) => a + (Number(r.prev_realizados) || 0), 0);

@@ -12,12 +12,6 @@ export async function listarSistemasMetrics(tipo) {
     return (data || []).filter(r => r.tipo === 'sitio' || (r.tipo === 'pmp' && r.data?.sitio));
   }
 
-  if (tipo === 'pmp') {
-    const { data, error } = await query.eq('tipo', 'pmp');
-    if (error) throw error;
-    return (data || []).filter(r => !r.data?.sitio);
-  }
-
   const { data, error } = await query.eq('tipo', tipo);
   if (error) throw error;
   return data || [];
