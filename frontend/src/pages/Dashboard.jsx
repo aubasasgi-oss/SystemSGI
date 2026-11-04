@@ -80,6 +80,7 @@ const Dashboard = () => {
   const [operacionesMetrics, setOperacionesMetrics] = useState([]);
   const [operacionesAnio, setOperacionesAnio] = useState(new Date().getFullYear());
   const [operacionesTrimestre, setOperacionesTrimestre] = useState(null);
+  const [operacionesConcesion, setOperacionesConcesion] = useState('Todas');
   
   const [rrhhMetrics, setRrhhMetrics] = useState([]);
   const [rrhhAnio, setRrhhAnio] = useState(new Date().getFullYear());
@@ -434,7 +435,8 @@ const Dashboard = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', width: '100%', maxWidth: '1000px', gap: '18px' }}>
           {[
             { key: 'comercial', label: 'GERENCIA COMERCIAL', Icon: Briefcase },
-            { key: 'operaciones_spp', label: 'GERENCIA DE OPERACIONES', Icon: BarChart2 },
+            { key: 'operaciones_spp', label: 'OPERACIONES (BALP)', Icon: BarChart2, conc: 'BALP' },
+            { key: 'operaciones_svia', label: 'OPERACIONES (SVIA)', Icon: BarChart2, conc: 'SVIA' },
             { key: 'asistencia', label: 'ASISTENCIA VIAL', Icon: Car },
             { key: 'ccm', label: 'CENTRO DE CONTROL Y MONITOREO', Icon: Monitor },
             { key: 'mantenimiento', label: 'MANTENIMIENTO - TALLER MECÁNICO', Icon: Wrench },
@@ -445,7 +447,17 @@ const Dashboard = () => {
           ].map(({ key, label, Icon }, i) => (
             <button
               key={key}
-              onClick={() => setActiveGerencia(key)}
+              onClick={() => {
+                if (key === 'operaciones_svia') {
+                  setActiveGerencia('operaciones_spp');
+                  setOperacionesConcesion('SVIA');
+                } else if (key === 'operaciones_spp') {
+                  setActiveGerencia('operaciones_spp');
+                  setOperacionesConcesion('BALP');
+                } else {
+                  setActiveGerencia(key);
+                }
+              }}
               className="btn-portal slide-in"
               style={{ animationDelay: `${0.1 + i * 0.08}s` }}
             >
@@ -1532,30 +1544,66 @@ const Dashboard = () => {
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     const TRIM_MESES = { 1: ['Enero','Febrero','Marzo'], 2: ['Abril','Mayo','Junio'], 3: ['Julio','Agosto','Septiembre'], 4: ['Octubre','Noviembre','Diciembre'] };
 
-    const filtered = operacionesTrimestre ? operacionesMetrics.filter(m => TRIM_MESES[operacionesTrimestre]?.includes(m.month)) : operacionesMetrics;
+    const SITIOS_SVIA = ['Samborombón', 'Maipú', 'La Huella', 'Madariaga', 'Mar Chiquita'];
+    const SITIOS_BALP = ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui'];
+
+    const matchConcesion = (sitio, conc) => {
+      if (!conc || conc === 'Todas') return true;
+      const s = (sitio || '').toLowerCase();
+      if (conc === 'SVIA') {
+        return SITIOS_SVIA.some(x => x.toLowerCase() === s) || s.includes('madariaga');
+      }
+      if (conc === 'BALP') {
+        return SITIOS_BALP.some(x => x.toLowerCase() === s);
+      }
+      return true;
+    };
+
+    const filteredByConc = operacionesConcesion === 'Todas'
+      ? operacionesMetrics
+      : operacionesMetrics.filter(m => matchConcesion(m.data?.op_spp?.sitio, operacionesConcesion));
+
+    const filtered = operacionesTrimestre
+      ? filteredByConc.filter(m => TRIM_MESES[operacionesTrimestre]?.includes(m.month))
+      : filteredByConc;
 
     const totFuera = filtered.reduce((a, m) => a + Number(m.data?.op_spp?.horas_fuera || 0), 0);
     const totMensuales = filtered.reduce((a, m) => a + Number(m.data?.op_spp?.horas_mensuales || 0), 0);
     const pctGral = totMensuales > 0 ? (totFuera / totMensuales) * 100 : 0;
 
-    // Aggregate by site for the table
+    // Sitios según la concesión elegida
+    const targetSitios = operacionesConcesion === 'SVIA'
+      ? SITIOS_SVIA
+      : operacionesConcesion === 'BALP'
+      ? SITIOS_BALP
+      : [...SITIOS_BALP, ...SITIOS_SVIA];
+
     const siteDataMap = {};
-    filtered.forEach(m => {
-      const s = m.data?.op_spp?.sitio;
-      if (s) {
-        if (!siteDataMap[s]) siteDataMap[s] = { sitio: s, horas_fuera: 0, horas_mensuales: 0 };
-        siteDataMap[s].horas_fuera += Number(m.data.op_spp.horas_fuera || 0);
-        siteDataMap[s].horas_mensuales += Number(m.data.op_spp.horas_mensuales || 0);
-      }
+    targetSitios.forEach(s => {
+      siteDataMap[s] = { sitio: s, horas_fuera: 0, horas_mensuales: 0, hasData: false };
     });
-    const siteData = Object.values(siteDataMap).sort((a,b) => a.sitio.localeCompare(b.sitio));
+
+    filtered.forEach(m => {
+      const rawSitio = m.data?.op_spp?.sitio;
+      if (!rawSitio) return;
+      const matchedKey = targetSitios.find(s => s.toLowerCase() === rawSitio.toLowerCase() || (s.includes('Madariaga') && rawSitio.toLowerCase().includes('madariaga')));
+      const key = matchedKey || rawSitio;
+      if (!siteDataMap[key]) {
+        siteDataMap[key] = { sitio: key, horas_fuera: 0, horas_mensuales: 0, hasData: false };
+      }
+      siteDataMap[key].horas_fuera += Number(m.data.op_spp.horas_fuera || 0);
+      siteDataMap[key].horas_mensuales += Number(m.data.op_spp.horas_mensuales || 0);
+      siteDataMap[key].hasData = true;
+    });
+
+    const siteData = targetSitios.map(s => siteDataMap[s] || { sitio: s, horas_fuera: 0, horas_mensuales: 0, hasData: false });
     const tblTotalFuera = siteData.reduce((a, s) => a + s.horas_fuera, 0);
     const tblTotalMensuales = siteData.reduce((a, s) => a + s.horas_mensuales, 0);
     const tblTotalPct = tblTotalMensuales > 0 ? (tblTotalFuera / tblTotalMensuales) * 100 : 0;
 
     // Monthly aggregation
     const monthlyData = MESES.map(m => {
-      const recs = operacionesMetrics.filter(r => r.month === m);
+      const recs = filteredByConc.filter(r => r.month === m);
       const hf = recs.reduce((a, r) => a + Number(r.data?.op_spp?.horas_fuera || 0), 0);
       const hm = recs.reduce((a, r) => a + Number(r.data?.op_spp?.horas_mensuales || 0), 0);
       const pct = hm > 0 ? Number(((hf / hm) * 100).toFixed(2)) : null;
@@ -1578,7 +1626,12 @@ const Dashboard = () => {
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
             <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
-            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>SISTEMA DE PERCEPCION<br/>DE PEAJE</div>
+            <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>
+              SISTEMA DE PERCEPCION<br/>DE PEAJE
+              <div style={{ fontSize: '12px', color: '#0284c7', fontWeight: 800, marginTop: '2px', textTransform: 'uppercase' }}>
+                {operacionesConcesion === 'Todas' ? 'Consolidado General' : `Concesión ${operacionesConcesion}`}
+              </div>
+            </div>
           </div>
           
           <div style={{ backgroundColor: 'white', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1586,17 +1639,31 @@ const Dashboard = () => {
           </div>
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ padding: '6px 16px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>Año</div>
-              <div style={{ display: 'flex', flex: 1 }}>
-                {[operacionesAnio-1, operacionesAnio, operacionesAnio+1].map(y => (
-                  <button key={y} onClick={() => setOperacionesAnio(y)} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px', background: y === operacionesAnio ? '#334155' : '#93c5fd', color: y === operacionesAnio ? 'white' : '#1e293b' }}>{y}</button>
-                ))}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden', flex: 1 }}>
+                <div style={{ padding: '6px 14px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '85px' }}>Concesión</div>
+                <div style={{ display: 'flex', flex: 1 }}>
+                  {['Todas', 'BALP', 'SVIA'].map(c => (
+                    <button key={c} onClick={() => setOperacionesConcesion(c)}
+                      style={{ flex: 1, padding: '6px 8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: operacionesConcesion === c ? '#334155' : '#93c5fd', color: operacionesConcesion === c ? 'white' : '#1e293b' }}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden', flex: 1 }}>
+                <div style={{ padding: '6px 14px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '70px' }}>Año</div>
+                <div style={{ display: 'flex', flex: 1 }}>
+                  {[operacionesAnio-1, operacionesAnio, operacionesAnio+1].map(y => (
+                    <button key={y} onClick={() => setOperacionesAnio(y)} style={{ flex: 1, padding: '6px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '13px', background: y === operacionesAnio ? '#334155' : '#93c5fd', color: y === operacionesAnio ? 'white' : '#1e293b' }}>{y}</button>
+                  ))}
+                </div>
               </div>
             </div>
             
             <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ padding: '6px 16px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>Trimestre</div>
+              <div style={{ padding: '6px 14px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '85px' }}>Trimestre</div>
               <div style={{ display: 'flex', flex: 1 }}>
                 <button onClick={() => setOperacionesTrimestre(null)} style={{ padding: '6px 12px', border: 'none', borderLeft: '1px solid #64748b', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: !operacionesTrimestre ? '#334155' : '#475569', color: 'white' }}>Todos</button>
                 {[1,2,3,4].map(t => (
@@ -1637,14 +1704,14 @@ const Dashboard = () => {
                 </thead>
                 <tbody>
                   {siteData.map((row, i) => {
-                    const pct = row.horas_mensuales > 0 ? (row.horas_fuera / row.horas_mensuales) * 100 : 0;
+                    const pct = row.horas_mensuales > 0 ? (row.horas_fuera / row.horas_mensuales) * 100 : (row.hasData ? 0 : null);
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid #cbd5e1', backgroundColor: 'white' }}>
-                        <td style={{ padding: '8px' }}>{row.sitio}</td>
-                        <td style={{ padding: '8px' }}>{row.horas_fuera}</td>
-                        <td style={{ padding: '8px' }}>{row.horas_mensuales}</td>
-                        <td style={{ padding: '8px', backgroundColor: getRowColor(pct), color: 'white', fontWeight: 700 }}>
-                          {pct.toFixed(1)} %
+                        <td style={{ padding: '8px', fontWeight: 600 }}>{row.sitio}</td>
+                        <td style={{ padding: '8px' }}>{row.hasData ? row.horas_fuera : '-'}</td>
+                        <td style={{ padding: '8px' }}>{row.hasData ? row.horas_mensuales : '-'}</td>
+                        <td style={{ padding: '8px', backgroundColor: pct === null ? '#94a3b8' : getRowColor(pct), color: 'white', fontWeight: 700 }}>
+                          {pct === null ? '-' : `${pct.toFixed(1)} %`}
                         </td>
                         <td style={{ padding: '8px' }}>4,00 %</td>
                       </tr>
