@@ -280,42 +280,29 @@ const Dashboard = () => {
   useEffect(() => {
     if (activeGerencia === 'sistemas') {
       const MESES_SIS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      const sum = (entries, field) => entries.reduce((a, e) => a + (Number(e[field]) || 0), 0);
-      const bucketPorMes = (rows) => {
-        const map = {};
-        rows.forEach(r => {
-          if (!r.fecha) return;
-          const d = new Date(r.fecha + 'T00:00:00');
-          if (d.getFullYear() !== sistemasAnio) return;
-          const mes = MESES_SIS[d.getMonth()];
-          if (!map[mes]) map[mes] = [];
-          map[mes].push(r.data || {});
-        });
-        return map;
-      };
-      listarSistemasMetricsMultiples(['pmp', 'tickets'])
+      listarSistemasMetricsMultiples(['pmp', 'tickets', 'sitio'])
         .then(rows => {
-          const pmpBucket = bucketPorMes(rows.filter(r => r.tipo === 'pmp'));
-          const ticketsBucket = bucketPorMes(rows.filter(r => r.tipo === 'tickets'));
-          const allMonths = new Set([...Object.keys(pmpBucket), ...Object.keys(ticketsBucket)]);
-          const arr = Array.from(allMonths).map(month => {
-            const pmpEntries = pmpBucket[month] || [];
+          const valid = (rows || []).filter(r => {
+            if (!r.fecha) return false;
+            const d = new Date(r.fecha + 'T00:00:00');
+            return d.getFullYear() === sistemasAnio;
+          });
+          const items = valid.map(r => {
+            const d = new Date(r.fecha + 'T00:00:00');
+            const month = MESES_SIS[d.getMonth()];
             return {
+              id: r.id,
+              fecha: r.fecha,
               month,
-              data: {
-                sis_pmp: {
-                  sitio: pmpEntries[0]?.sitio,
-                  prev_realizados: sum(pmpEntries, 'prev_realizados'),
-                  prev_planificados: sum(pmpEntries, 'prev_planificados'),
-                },
-                sis_tickets: {
-                  tickets_realizados: sum(ticketsBucket[month] || [], 'tickets_realizados'),
-                  tickets_solicitados: sum(ticketsBucket[month] || [], 'tickets_solicitados'),
-                },
-              },
+              tipo: r.tipo,
+              sitio: r.data?.sitio || null,
+              prev_realizados: Number(r.data?.prev_realizados || 0),
+              prev_planificados: Number(r.data?.prev_planificados || 0),
+              tickets_realizados: Number(r.data?.tickets_realizados || 0),
+              tickets_solicitados: Number(r.data?.tickets_solicitados || 0),
             };
           });
-          setSistemasMetrics(arr);
+          setSistemasMetrics(items);
         })
         .catch(() => setSistemasMetrics([]));
     }
@@ -1838,28 +1825,39 @@ const Dashboard = () => {
 
   const renderSistemas = () => {
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const SITIOS = ['Dock Sud', 'Hudson', 'Berazategui', 'Bernal', 'Quilmes'];
+    const SITIOS = ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui', 'Samborombón', 'Maipú', 'La Huella', 'Mar Chiquita', 'Gral. Madariaga'];
 
-    const filteredBySite = sistemasSitio === 'Seleccionar todo' ? sistemasMetrics : sistemasMetrics.filter(m => m.data?.sis_pmp?.sitio === sistemasSitio);
-    const filteredByMonth = sistemasMes ? filteredBySite.filter(m => m.month === sistemasMes) : filteredBySite;
+    // Preventivo (pmp y sitio)
+    const pmpRows = sistemasMetrics.filter(r => r.tipo === 'pmp' || r.tipo === 'sitio');
+    const pmpFiltered = sistemasSitio === 'Seleccionar todo'
+      ? pmpRows
+      : pmpRows.filter(r => r.sitio === sistemasSitio);
 
-    // Gauges (filtered by both Month and Site)
-    const prevPlanificados = filteredByMonth.reduce((a, m) => a + Number(m.data?.sis_pmp?.prev_planificados || 0), 0);
-    const prevRealizados = filteredByMonth.reduce((a, m) => a + Number(m.data?.sis_pmp?.prev_realizados || 0), 0);
+    // Tickets
+    const ticketRows = sistemasMetrics.filter(r => r.tipo === 'tickets');
+
+    // Gauges (filtrados por Mes y Sitio)
+    const pmpGauges = sistemasMes ? pmpFiltered.filter(r => r.month === sistemasMes) : pmpFiltered;
+    const ticketGauges = sistemasMes ? ticketRows.filter(r => r.month === sistemasMes) : ticketRows;
+
+    const prevPlanificados = pmpGauges.reduce((a, r) => a + (Number(r.prev_planificados) || 0), 0);
+    const prevRealizados = pmpGauges.reduce((a, r) => a + (Number(r.prev_realizados) || 0), 0);
     const pctPrev = prevPlanificados > 0 ? (prevRealizados / prevPlanificados) * 100 : 0;
 
-    const tickSolicitados = filteredByMonth.reduce((a, m) => a + Number(m.data?.sis_tickets?.tickets_solicitados || 0), 0);
-    const tickRealizados = filteredByMonth.reduce((a, m) => a + Number(m.data?.sis_tickets?.tickets_realizados || 0), 0);
+    const tickSolicitados = ticketGauges.reduce((a, r) => a + (Number(r.tickets_solicitados) || 0), 0);
+    const tickRealizados = ticketGauges.reduce((a, r) => a + (Number(r.tickets_realizados) || 0), 0);
     const pctTick = tickSolicitados > 0 ? (tickRealizados / tickSolicitados) * 100 : 0;
 
-    // Charts (filtered by Site only, showing all months)
+    // Charts (filtrado por Sitio, mostrando todos los meses con datos)
     const monthlyData = MESES.map(m => {
-      const rec = filteredBySite.find(r => r.month === m);
-      const prPlan = Number(rec?.data?.sis_pmp?.prev_planificados || 0);
-      const prReal = Number(rec?.data?.sis_pmp?.prev_realizados || 0);
-      const tkSol = Number(rec?.data?.sis_tickets?.tickets_solicitados || 0);
-      const tkReal = Number(rec?.data?.sis_tickets?.tickets_realizados || 0);
-      
+      const pmpMonth = pmpFiltered.filter(r => r.month === m);
+      const ticketMonth = ticketRows.filter(r => r.month === m);
+
+      const prPlan = pmpMonth.reduce((a, r) => a + (Number(r.prev_planificados) || 0), 0);
+      const prReal = pmpMonth.reduce((a, r) => a + (Number(r.prev_realizados) || 0), 0);
+      const tkSol = ticketMonth.reduce((a, r) => a + (Number(r.tickets_solicitados) || 0), 0);
+      const tkReal = ticketMonth.reduce((a, r) => a + (Number(r.tickets_realizados) || 0), 0);
+
       const pctPr = prPlan > 0 ? Math.round((prReal / prPlan) * 100) : null;
       const pctTk = tkSol > 0 ? Math.round((tkReal / tkSol) * 100) : null;
 
@@ -1937,7 +1935,7 @@ const Dashboard = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', padding: '4px', backgroundColor: '#94a3b8' }}>
                 <button 
                   onClick={() => setSistemasSitio('Seleccionar todo')}
-                  style={{ padding: '20px 8px', border: 'none', backgroundColor: sistemasSitio === 'Seleccionar todo' ? '#334155' : '#475569', color: 'white', fontWeight: 600, fontSize: '11px', cursor: 'pointer', gridColumn: '1' }}
+                  style={{ padding: '10px 8px', border: 'none', backgroundColor: sistemasSitio === 'Seleccionar todo' ? '#334155' : '#475569', color: 'white', fontWeight: 600, fontSize: '11px', cursor: 'pointer', gridColumn: 'span 2' }}
                 >
                   Seleccionar todo
                 </button>
@@ -1945,7 +1943,7 @@ const Dashboard = () => {
                   <button 
                     key={s} 
                     onClick={() => setSistemasSitio(s)}
-                    style={{ padding: '20px 8px', border: 'none', backgroundColor: sistemasSitio === s ? '#334155' : '#475569', color: 'white', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
+                    style={{ padding: '10px 6px', border: 'none', backgroundColor: sistemasSitio === s ? '#334155' : '#475569', color: 'white', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
                   >
                     {s}
                   </button>

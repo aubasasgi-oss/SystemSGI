@@ -17,7 +17,7 @@ grant select, insert, update, delete on table sgi_legales_metrics to anon, authe
 
 create table if not exists sgi_sistemas_metrics (
   id         uuid primary key default gen_random_uuid(),
-  tipo       text not null check (tipo in ('pmp','tickets')),
+  tipo       text not null check (tipo in ('pmp','tickets','sitio')),
   fecha      date not null,
   data       jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),

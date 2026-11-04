@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Pencil, Trash2, X, PlusCircle } from 'lucide-react';
+import { Save, Pencil, Trash2, X, PlusCircle, Filter } from 'lucide-react';
 import { listarSistemasMetrics, guardarSistemasMetric, eliminarSistemasMetric } from '../lib/sistemasMetricsApi';
 
 const SITIOS = ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui', 'Samborombón', 'Maipú', 'La Huella', 'Mar Chiquita', 'Gral. Madariaga'];
@@ -15,18 +15,30 @@ const cumpleBadge = (texto, ok) => (
 );
 
 const TIPOS = {
-  pmp: {
-    label: 'Cumplimiento PMP - Sistemas',
+  sitio: {
+    label: 'Sitio (Mantenimiento por Sitio)',
     campos: [
-      { id: 'sitio', label: 'Sitio', type: 'select', options: SITIOS },
+      { id: 'sitio', label: 'Sitio de la Autopista', type: 'select', options: SITIOS },
       { id: 'prev_realizados', label: 'Cant. trabajos de mantenimiento preventivos realizados', type: 'number' },
       { id: 'prev_planificados', label: 'Cant. trabajos de mantenimiento preventivos planificados', type: 'number' },
     ],
     columnas: (d) => {
       const ind = pct(d.prev_realizados, d.prev_planificados);
-      return [d.sitio, fmtNum(d.prev_realizados), fmtNum(d.prev_planificados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 75), 'Meta ≥ 75%'];
+      return [d.sitio || '-', fmtNum(d.prev_realizados), fmtNum(d.prev_planificados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 75), 'Meta ≥ 75%'];
     },
     headers: ['Sitio', 'Realizados', 'Planificados', 'Indicador', 'Meta'],
+  },
+  pmp: {
+    label: 'Cumplimiento PMP (General)',
+    campos: [
+      { id: 'prev_realizados', label: 'Cant. trabajos de mantenimiento preventivos realizados', type: 'number' },
+      { id: 'prev_planificados', label: 'Cant. trabajos de mantenimiento preventivos planificados', type: 'number' },
+    ],
+    columnas: (d) => {
+      const ind = pct(d.prev_realizados, d.prev_planificados);
+      return [fmtNum(d.prev_realizados), fmtNum(d.prev_planificados), cumpleBadge(fmtPct(ind), ind === null ? null : ind >= 75), 'Meta ≥ 75%'];
+    },
+    headers: ['Realizados', 'Planificados', 'Indicador', 'Meta'],
   },
   tickets: {
     label: 'Gestión de Ticket',
@@ -49,12 +61,13 @@ const emptyForm = (tipoKey) => {
 };
 
 const SistemasMetricsForms = () => {
-  const [tipoActivo, setTipoActivo] = useState('pmp');
+  const [tipoActivo, setTipoActivo] = useState('sitio');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm('pmp'));
+  const [form, setForm] = useState(emptyForm('sitio'));
   const [saveMsg, setSaveMsg] = useState('');
+  const [filtroSitio, setFiltroSitio] = useState('');
 
   const cargarFilas = (tipoKey) => {
     setLoading(true);
@@ -68,6 +81,7 @@ const SistemasMetricsForms = () => {
     cargarFilas(tipoActivo);
     setEditingId(null);
     setForm(emptyForm(tipoActivo));
+    setFiltroSitio('');
   }, [tipoActivo]);
 
   const handleChange = (campoId, value) => setForm(prev => ({ ...prev, [campoId]: value }));
@@ -108,6 +122,10 @@ const SistemasMetricsForms = () => {
 
   const config = TIPOS[tipoActivo];
 
+  const displayedRows = tipoActivo === 'sitio' && filtroSitio
+    ? rows.filter(r => r.data?.sitio === filtroSitio)
+    : rows;
+
   return (
     <div className="module-container">
       <div className="module-header animate-fade-in">
@@ -138,11 +156,11 @@ const SistemasMetricsForms = () => {
               <input type="date" className="form-control" value={form.fecha || ''} onChange={e => handleChange('fecha', e.target.value)} required />
             </div>
             {config.campos.map(campo => (
-              <div key={campo.id} className="form-group" style={{ marginBottom: 0, minWidth: '180px', flex: campo.type === 'select' ? '0 1 200px' : '1 1 200px' }}>
+              <div key={campo.id} className="form-group" style={{ marginBottom: 0, minWidth: '180px', flex: campo.type === 'select' ? '0 1 220px' : '1 1 200px' }}>
                 <label className="form-label">{campo.label}</label>
                 {campo.type === 'select' ? (
                   <select className="form-control" value={form[campo.id] || ''} onChange={e => handleChange(campo.id, e.target.value)} required>
-                    <option value="">Seleccionar...</option>
+                    <option value="">Seleccionar sitio...</option>
                     {campo.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 ) : (
@@ -166,6 +184,26 @@ const SistemasMetricsForms = () => {
       </div>
 
       <div className="glass table-container animate-fade-in delay-1" style={{ overflowX: 'auto' }}>
+        {tipoActivo === 'sitio' && rows.length > 0 && (
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary, #475569)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Filter size={15} /> Filtrar tabla por sitio:
+            </span>
+            <select
+              className="form-control"
+              value={filtroSitio}
+              onChange={e => setFiltroSitio(e.target.value)}
+              style={{ maxWidth: '240px', padding: '6px 12px', fontSize: '13px' }}
+            >
+              <option value="">Todos los sitios ({rows.length} registros)</option>
+              {SITIOS.map(s => {
+                const cant = rows.filter(r => r.data?.sitio === s).length;
+                return <option key={s} value={s}>{s} ({cant})</option>;
+              })}
+            </select>
+          </div>
+        )}
+
         {loading ? (
           <div style={{ padding: '32px', textAlign: 'center' }}>Cargando...</div>
         ) : (
@@ -178,7 +216,7 @@ const SistemasMetricsForms = () => {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
+              {displayedRows.map(row => (
                 <tr key={row.id}>
                   <td>{row.fecha}</td>
                   {config.columnas(row.data).map((val, i) => <td key={i}>{val}</td>)}
@@ -188,9 +226,13 @@ const SistemasMetricsForms = () => {
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && (
+              {displayedRows.length === 0 && (
                 <tr>
-                  <td colSpan={config.headers.length + 2} style={{ textAlign: 'center', padding: '32px' }}>No hay cargas todavía para {config.label}.</td>
+                  <td colSpan={config.headers.length + 2} style={{ textAlign: 'center', padding: '32px' }}>
+                    {rows.length === 0
+                      ? `No hay cargas todavía para ${config.label}.`
+                      : `No hay registros cargados para el sitio "${filtroSitio}".`}
+                  </td>
                 </tr>
               )}
             </tbody>
