@@ -12,6 +12,7 @@ import { listarRrhhMetricsMultiples } from '../lib/rrhhMetricsApi';
 import { listarLegalesMetricsMultiples } from '../lib/legalesMetricsApi';
 import { listarSistemasMetricsMultiples } from '../lib/sistemasMetricsApi';
 import { listarInstitucionalesMetrics } from '../lib/institucionalesMetricsApi';
+import { useAuth } from '../contexts/AuthContext';
 
 // Datos Mock
 const dataOperaciones = [
@@ -49,6 +50,7 @@ const dataLegales = [
 ];
 
 const Dashboard = () => {
+  const { userRole, userSector } = useAuth();
   const [activeGerencia, setActiveGerencia] = useState(null);
   const [comercialRows, setComercialRows] = useState({ quejas_reclamos: [], telepase: [], atencion: [], tiempo_respuesta: [] });
   const [comercialView, setComercialView] = useState('home');
@@ -109,6 +111,34 @@ const Dashboard = () => {
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    if (userRole && userRole !== 'SGI') {
+      if (userSector === 'Operaciones SVIA') {
+        setActiveGerencia('operaciones_spp');
+        setOperacionesConcesion('SVIA');
+      } else if (userSector === 'Operaciones BALP') {
+        setActiveGerencia('operaciones_spp');
+        setOperacionesConcesion('BALP');
+      } else if (userSector === 'Gerencia Comercial') {
+        setActiveGerencia('comercial');
+      } else if (userSector === 'Prevención y Seguridad Vial') {
+        setActiveGerencia('asistencia');
+      } else if (userSector === 'Centro de Control y Monitoreo') {
+        setActiveGerencia('ccm');
+      } else if (userSector === 'Taller Mecánico') {
+        setActiveGerencia('mantenimiento');
+      } else if (userSector === 'Relaciones Institucionales') {
+        setActiveGerencia('institucionales');
+      } else if (userSector === 'Recursos Humanos') {
+        setActiveGerencia('rrhh');
+      } else if (userSector === 'Asuntos Legales') {
+        setActiveGerencia('legales');
+      } else if (userSector === 'Sistemas y Mantenimiento') {
+        setActiveGerencia('sistemas');
+      }
+    }
+  }, [userRole, userSector]);
 
   useEffect(() => {
     if (activeGerencia === 'comercial') {
@@ -434,17 +464,22 @@ const Dashboard = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', width: '100%', maxWidth: '1000px', gap: '18px' }}>
           {[
-            { key: 'comercial', label: 'GERENCIA COMERCIAL', Icon: Briefcase },
-            { key: 'operaciones_spp', label: 'OPERACIONES (BALP)', Icon: BarChart2, conc: 'BALP' },
-            { key: 'operaciones_svia', label: 'OPERACIONES (SVIA)', Icon: BarChart2, conc: 'SVIA' },
-            { key: 'asistencia', label: 'ASISTENCIA VIAL', Icon: Car },
-            { key: 'ccm', label: 'CENTRO DE CONTROL Y MONITOREO', Icon: Monitor },
-            { key: 'mantenimiento', label: 'MANTENIMIENTO - TALLER MECÁNICO', Icon: Wrench },
-            { key: 'institucionales', label: 'SUBGERENCIA RELACIONES INSTITUCIONALES', Icon: Building2 },
-            { key: 'rrhh', label: 'GERENCIA DE RECURSOS HUMANOS', Icon: Users },
-            { key: 'legales', label: 'GERENCIA DE ASUNTOS LEGALES', Icon: Scale },
-            { key: 'sistemas', label: 'GERENCIA SISTEMAS - MANTENIMIENTO', Icon: Server },
-          ].map(({ key, label, Icon }, i) => (
+            { key: 'comercial', label: 'GERENCIA COMERCIAL', Icon: Briefcase, sector: 'Gerencia Comercial' },
+            { key: 'operaciones_spp', label: 'OPERACIONES (BALP)', Icon: BarChart2, conc: 'BALP', sector: 'Operaciones BALP' },
+            { key: 'operaciones_svia', label: 'OPERACIONES (SVIA)', Icon: BarChart2, conc: 'SVIA', sector: 'Operaciones SVIA' },
+            { key: 'asistencia', label: 'ASISTENCIA VIAL', Icon: Car, sector: 'Prevención y Seguridad Vial' },
+            { key: 'ccm', label: 'CENTRO DE CONTROL Y MONITOREO', Icon: Monitor, sector: 'Centro de Control y Monitoreo' },
+            { key: 'mantenimiento', label: 'MANTENIMIENTO - TALLER MECÁNICO', Icon: Wrench, sector: 'Taller Mecánico' },
+            { key: 'institucionales', label: 'SUBGERENCIA RELACIONES INSTITUCIONALES', Icon: Building2, sector: 'Relaciones Institucionales' },
+            { key: 'rrhh', label: 'GERENCIA DE RECURSOS HUMANOS', Icon: Users, sector: 'Recursos Humanos' },
+            { key: 'legales', label: 'GERENCIA DE ASUNTOS LEGALES', Icon: Scale, sector: 'Asuntos Legales' },
+            { key: 'sistemas', label: 'GERENCIA SISTEMAS - MANTENIMIENTO', Icon: Server, sector: 'Sistemas y Mantenimiento' },
+          ].filter(item => {
+            if (!userRole || userRole === 'SGI') return true;
+            if (userSector === 'Operaciones SVIA') return item.key === 'operaciones_svia';
+            if (userSector === 'Operaciones BALP') return item.key === 'operaciones_spp';
+            return item.sector === userSector;
+          }).map(({ key, label, Icon }, i) => (
             <button
               key={key}
               onClick={() => {
@@ -1625,7 +1660,9 @@ const Dashboard = () => {
         {/* Top Header */}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'stretch' }}>
           <div style={{ backgroundColor: '#f8fafc', padding: '12px 24px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px' }}>
-            <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            {(!userRole || userRole === 'SGI') && (
+              <button onClick={() => setActiveGerencia(null)} style={{ flexShrink: 0, backgroundColor: '#e2e8f0', color: '#0ea5e9', width: '32px', height: '32px', borderRadius: '4px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>🏠</button>
+            )}
             <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>
               SISTEMA DE PERCEPCION<br/>DE PEAJE
               <div style={{ fontSize: '12px', color: '#0284c7', fontWeight: 800, marginTop: '2px', textTransform: 'uppercase' }}>
@@ -1643,7 +1680,7 @@ const Dashboard = () => {
               <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden', flex: 1 }}>
                 <div style={{ padding: '6px 14px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '85px' }}>Concesión</div>
                 <div style={{ display: 'flex', flex: 1 }}>
-                  {['Todas', 'BALP', 'SVIA'].map(c => (
+                  {(userSector === 'Operaciones SVIA' ? ['SVIA'] : userSector === 'Operaciones BALP' ? ['BALP'] : ['Todas', 'BALP', 'SVIA']).map(c => (
                     <button key={c} onClick={() => setOperacionesConcesion(c)}
                       style={{ flex: 1, padding: '6px 8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: operacionesConcesion === c ? '#334155' : '#93c5fd', color: operacionesConcesion === c ? 'white' : '#1e293b' }}>
                       {c}

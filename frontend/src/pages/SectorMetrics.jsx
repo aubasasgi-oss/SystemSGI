@@ -369,7 +369,9 @@ const SectorMetrics = () => {
     
     switch (userSector) {
       case 'Gerencia de Operaciones':
-      case 'Operaciones SPP': return 'operaciones_spp';
+      case 'Operaciones SPP':
+      case 'Operaciones SVIA':
+      case 'Operaciones BALP': return 'operaciones_spp';
       case 'CCM':
       case 'CCM Gestión Tránsito':
         return 'ccm_unificado';

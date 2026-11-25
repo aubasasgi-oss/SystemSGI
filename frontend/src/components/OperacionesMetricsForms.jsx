@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Pencil, Trash2, X, PlusCircle } from 'lucide-react';
 import { listarOperacionesMetrics, guardarOperacionesMetric, eliminarOperacionesMetric } from '../lib/operacionesMetricsApi';
+import { useAuth } from '../contexts/AuthContext';
 
 const SITIOS = ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui', 'Samborombón', 'Maipú', 'La Huella', 'Mar Chiquita', 'Gral. Madariaga'];
+const SITIOS_SVIA = ['Samborombón', 'Maipú', 'La Huella', 'Gral. Madariaga', 'Mar Chiquita'];
+const SITIOS_BALP = ['Dock Sud', 'Hudson', 'Bernal', 'Quilmes', 'Berazategui'];
+
 const META_SPP = 4.0; // Meta ≤ 4,00% (igual que el KPI definido en Indicadores)
 
 const fmtNum = (v) => v === null || v === undefined || v === '' || isNaN(v) ? '-' : Number(v).toFixed(2).replace('.', ',');
@@ -17,6 +21,16 @@ const cumpleBadge = (texto, ok) => (
 const emptyForm = () => ({ fecha: '', sitio: '', horas_fuera: '', horas_mensuales: '' });
 
 const OperacionesMetricsForms = () => {
+  const { userSector, userRole } = useAuth();
+  const isSvia = userSector === 'Operaciones SVIA';
+  const isBalp = userSector === 'Operaciones BALP';
+
+  const sitiosDisponibles = isSvia
+    ? SITIOS_SVIA
+    : isBalp
+    ? SITIOS_BALP
+    : SITIOS; // SGI ve todas las estaciones
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -78,12 +92,34 @@ const OperacionesMetricsForms = () => {
       .catch(err => alert('Error al guardar: ' + err.message));
   };
 
+  const displayedRows = rows.filter(r => {
+    if (isSvia) {
+      const s = (r.data?.sitio || '').toLowerCase();
+      return SITIOS_SVIA.some(x => x.toLowerCase() === s) || s.includes('madariaga');
+    }
+    if (isBalp) {
+      const s = (r.data?.sitio || '').toLowerCase();
+      return SITIOS_BALP.some(x => x.toLowerCase() === s);
+    }
+    return true;
+  });
+
   return (
     <div className="module-container">
       <div className="module-header animate-fade-in">
         <div>
-          <h2>Carga de Métricas - Sistema de Percepción de Peaje (SPP)</h2>
-          <p>Cada carga es un registro independiente (por fecha y sitio) que se puede editar o eliminar.</p>
+          <h2>
+            Carga de Métricas - Sistema de Percepción de Peaje (SPP)
+            {isSvia && ' (Concesión SVIA)'}
+            {isBalp && ' (Concesión BALP)'}
+          </h2>
+          <p>
+            {isSvia
+              ? 'Registros correspondientes a las estaciones del Corredor Atlántico (SVIA).'
+              : isBalp
+              ? 'Registros correspondientes a las estaciones de Autopista BALP.'
+              : 'Cada carga es un registro independiente (por fecha y sitio) que se puede editar o eliminar.'}
+          </p>
         </div>
       </div>
 
@@ -114,8 +150,8 @@ const OperacionesMetricsForms = () => {
                 onChange={e => handleChange('sitio', e.target.value)}
                 required
               >
-                <option value="">Seleccionar...</option>
-                {SITIOS.map(s => <option key={s} value={s}>{s}</option>)}
+                <option value="">Seleccionar estación...</option>
+                {sitiosDisponibles.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
@@ -148,11 +184,20 @@ const OperacionesMetricsForms = () => {
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
             {editingId && (
-              <button type="button" className="btn btn-secondary" onClick={handleCancelEdit} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCancelEdit}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
                 <X size={16} /> Cancelar
               </button>
             )}
-            <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
               <Save size={18} /> {editingId ? 'Guardar cambios' : 'Guardar carga'}
             </button>
           </div>
@@ -182,7 +227,7 @@ const OperacionesMetricsForms = () => {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => {
+              {displayedRows.map(row => {
                 const ind = pct(row.data?.horas_fuera, row.data?.horas_mensuales);
                 return (
                   <tr key={row.id}>
@@ -203,10 +248,10 @@ const OperacionesMetricsForms = () => {
                   </tr>
                 );
               })}
-              {rows.length === 0 && (
+              {displayedRows.length === 0 && (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }}>
-                    No hay cargas todavía para el SPP.
+                    No hay cargas todavía para {isSvia ? 'SVIA' : isBalp ? 'BALP' : 'el SPP'}.
                   </td>
                 </tr>
               )}

@@ -97,7 +97,12 @@ export const AuthProvider = ({ children }) => {
 
   const checkPermission = (itemSector) => {
     if (userRole === 'SGI') return true; // Admin global
-    return userSector === itemSector; // Permiso solo si coincide el sector
+    if (userSector === itemSector) return true;
+    if ((userSector === 'Operaciones SVIA' || userSector === 'Operaciones BALP') && 
+        (itemSector === 'Gerencia de Operaciones' || itemSector === 'Operaciones SPP' || itemSector === 'Operaciones')) {
+      return true;
+    }
+    return false;
   };
 
   return (
