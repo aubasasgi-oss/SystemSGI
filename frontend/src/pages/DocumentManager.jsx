@@ -305,11 +305,25 @@ export default function DocumentManager() {
   
 
 
+  // Limpieza de carpetas creadas internamente para Manual de Gestión
+  const cleanFolders = (folders) => (folders || []).filter(f => {
+    const norm = f.trim().toLowerCase();
+    return norm !== 'manual de gestión' && norm !== 'manual de gestion';
+  });
+
+  const cleanSubFolders = (subFolders) => {
+    if (!subFolders || typeof subFolders !== 'object') return {};
+    const copy = { ...subFolders };
+    delete copy['Manual de Gestión'];
+    delete copy['Manual de Gestion'];
+    return copy;
+  };
+
   // Carpetas dinámicas sincronizadas con Supabase en la nube
   const [customFolders, setCustomFolders] = useState(() => {
     try {
       const s = localStorage.getItem('sgi_custom_folders_v1');
-      return s ? JSON.parse(s) : [];
+      return s ? cleanFolders(JSON.parse(s)) : [];
     } catch {
       return [];
     }
@@ -318,7 +332,7 @@ export default function DocumentManager() {
   const [customSubFolders, setCustomSubFolders] = useState(() => {
     try {
       const s = localStorage.getItem('sgi_custom_subfolders_v1');
-      return s ? JSON.parse(s) : {};
+      return s ? cleanSubFolders(JSON.parse(s)) : {};
     } catch {
       return {};
     }
@@ -370,18 +384,37 @@ export default function DocumentManager() {
         .maybeSingle();
 
       if (!error && data?.data) {
-        if (Array.isArray(data.data.customFolders)) {
-          setCustomFolders(data.data.customFolders);
-          localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(data.data.customFolders));
-        }
-        if (data.data.customSubFolders && typeof data.data.customSubFolders === 'object') {
-          setCustomSubFolders(data.data.customSubFolders);
-          localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(data.data.customSubFolders));
-        }
+        const cleanedF = cleanFolders(data.data.customFolders);
+        const cleanedSub = cleanSubFolders(data.data.customSubFolders);
+        setCustomFolders(cleanedF);
+        setCustomSubFolders(cleanedSub);
+        localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(cleanedF));
+        localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(cleanedSub));
       }
     } catch (err) {
       console.warn('Error leyendo carpetas compartidas desde Supabase:', err);
     }
+  };
+
+  const handleDeleteFolder = async (folderTitle, parentFolder = null) => {
+    if (!window.confirm(`¿Seguro que deseas eliminar la carpeta "${folderTitle}"?`)) return;
+
+    let updatedFolders = [...customFolders];
+    let updatedSubFolders = { ...customSubFolders };
+
+    if (!parentFolder || parentFolder === 'raiz') {
+      updatedFolders = updatedFolders.filter(f => f !== folderTitle);
+      setCustomFolders(updatedFolders);
+      localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(updatedFolders));
+    } else {
+      if (updatedSubFolders[parentFolder]) {
+        updatedSubFolders[parentFolder] = updatedSubFolders[parentFolder].filter(s => s.title !== folderTitle);
+        setCustomSubFolders(updatedSubFolders);
+        localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(updatedSubFolders));
+      }
+    }
+
+    await persistFoldersCloud(updatedFolders, updatedSubFolders);
   };
 
   const handleCreateFolder = async (e) => {
