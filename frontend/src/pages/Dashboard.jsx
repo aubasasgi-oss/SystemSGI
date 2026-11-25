@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, FileText, AlertTriangle, Car, BarChart2, Monitor, Wrench, Phone, Briefcase, Users, Server, BookOpen, TrendingUp, Maximize, Minimize, Scale, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Line, LineChart, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import Papa from 'papaparse';
@@ -50,6 +51,7 @@ const dataLegales = [
 ];
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { userRole, userSector } = useAuth();
   const [activeGerencia, setActiveGerencia] = useState(null);
   const [comercialRows, setComercialRows] = useState({ quejas_reclamos: [], telepase: [], atencion: [], tiempo_respuesta: [] });
@@ -2204,7 +2206,28 @@ const Dashboard = () => {
           <GaugeLegales value={pctGral} label="Indicador de Respuestas a GC (% de solicitudes ≤ 7 días)" objetivo="95,00" color="#0ea5e9" trackColor="#e0f2fe" />
 
           <div style={{ backgroundColor: '#f8fafc', borderRadius: '4px', overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid #cbd5e1' }}>
-            {hdr('Cumplimiento confección Matriz Legal (1 = Cumple / 0 = No Cumple)', '#0ea5e9')}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0ea5e9', paddingRight: '12px' }}>
+              {hdr('Cumplimiento confección Matriz Legal (1 = Cumple / 0 = No Cumple)', '#0ea5e9')}
+              <button
+                onClick={() => navigate('/matriz-legal')}
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#0284c7',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '5px 12px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}
+              >
+                Abrir Matriz Legal (PAU-02) ➔
+              </button>
+            </div>
             <div style={{ flex: 1, padding: '16px', minHeight: '180px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart layout="vertical" data={monthlyData.filter(d => d.matriz !== null)} margin={{ top: 0, right: 30, bottom: 0, left: 10 }}>

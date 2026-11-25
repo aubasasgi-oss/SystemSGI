@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users, Grid, UserCheck, GitBranch } from 'lucide-react';
+import { ShieldAlert, FileText, AlertTriangle, MessageSquare, Home, Target, LayoutDashboard, Globe, BarChart2, BookOpen, FileSignature, Users, Grid, UserCheck, GitBranch, Scale } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = () => {
@@ -61,6 +61,11 @@ const Sidebar = () => {
         <NavLink to="/risks" className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
           <AlertTriangle size={20} />
           <span>Matriz de Riesgos</span>
+        </NavLink>
+
+        <NavLink to="/matriz-legal" className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Scale size={20} />
+          <span>Matriz Legal (PAU-02)</span>
         </NavLink>
 
         <NavLink to="/cambios" className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
