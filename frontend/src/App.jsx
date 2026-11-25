@@ -17,6 +17,7 @@ import ControlDocumental from './pages/ControlDocumental';
 import Login from './pages/Login';
 import AdminUsers from './pages/AdminUsers';
 import OtherApps from './pages/OtherApps';
+import GestionCambios from './pages/GestionCambios';
 
 const ProtectedRoute = ({ children }) => {
   const { user } = useAuth();
@@ -55,6 +56,7 @@ function App() {
             <Route path="control-documental" element={<ControlDocumental />} />
             <Route path="context" element={<Context />} />
             <Route path="partes-interesadas" element={<PartesInteresadas />} />
+            <Route path="cambios" element={<GestionCambios />} />
             <Route path="risks" element={<Risks />} />
             <Route path="whistleblowing" element={<Whistleblowing />} />
             <Route path="*" element={<Navigate to="/" replace />} />
