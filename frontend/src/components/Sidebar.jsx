@@ -51,7 +51,7 @@ const Sidebar = () => {
         </NavLink>
         <NavLink to="/partes-interesadas" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <UserCheck size={18} />
-          <span>Partes Interesadas</span>
+          <span>Partes Interesadas y Riesgos</span>
         </NavLink>
         <NavLink to="/metrics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <BarChart2 size={18} />

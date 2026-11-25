@@ -5,6 +5,7 @@ import RiskHeatmap from '../components/RiskHeatmap';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { listarContexto, guardarContexto, eliminarContexto } from '../lib/contextoApi';
+import { PARTES_INTERESADAS_CATALOGO } from '../lib/partesInteresadasData';
 
 export default function Context() {
   const { userRole } = useAuth();
@@ -285,8 +286,18 @@ export default function Context() {
               <input type="text" className="form-control" value={selectedItem?.proceso} onChange={e => setSelectedItem({...selectedItem, proceso: e.target.value})} required placeholder="Ej: Gerencia General, Sistemas..." />
             </div>
             <div>
-              <label className="form-label">Partes Interesadas (ISO 4.2)</label>
-              <input type="text" className="form-control" value={selectedItem?.partesInteresadas} onChange={e => setSelectedItem({...selectedItem, partesInteresadas: e.target.value})} placeholder="Ej: Usuarios, Proveedores, Estado..." required />
+              <label className="form-label">Parte Interesada Pertinente (ISO 4.2 - Criterio Unificado)</label>
+              <select
+                className="form-control"
+                value={selectedItem?.partesInteresadas || ''}
+                onChange={e => setSelectedItem({...selectedItem, partesInteresadas: e.target.value})}
+                required
+              >
+                <option value="">Seleccionar Parte Interesada...</option>
+                {PARTES_INTERESADAS_CATALOGO.map(p => (
+                  <option key={p.id} value={p.nombre}>{p.nombre} ({p.tipo} — {p.aplicaISO})</option>
+                ))}
+              </select>
             </div>
 
             <div style={{ gridColumn: '1 / -1' }}>
