@@ -23,7 +23,7 @@ const emptyForm = () => ({ fecha: '', sitio: '', horas_fuera: '', horas_mensuale
 const OperacionesMetricsForms = () => {
   const { userSector, userRole } = useAuth();
   const isSvia = userSector === 'Operaciones SVIA';
-  const isBalp = userSector === 'Operaciones BALP';
+  const isBalp = userSector === 'Operaciones BALP' || userSector === 'Operaciones ALP';
 
   const sitiosDisponibles = isSvia
     ? SITIOS_SVIA
@@ -111,13 +111,13 @@ const OperacionesMetricsForms = () => {
           <h2>
             Carga de Métricas - Sistema de Percepción de Peaje (SPP)
             {isSvia && ' (Concesión SVIA)'}
-            {isBalp && ' (Concesión BALP)'}
+            {isBalp && ' (Concesión BALP / ALP)'}
           </h2>
           <p>
             {isSvia
               ? 'Registros correspondientes a las estaciones del Corredor Atlántico (SVIA).'
               : isBalp
-              ? 'Registros correspondientes a las estaciones de Autopista BALP.'
+              ? 'Registros correspondientes a las estaciones de Autopista Buenos Aires - La Plata (Dock Sud, Hudson, Bernal, Quilmes, Berazategui).'
               : 'Cada carga es un registro independiente (por fecha y sitio) que se puede editar o eliminar.'}
           </p>
         </div>

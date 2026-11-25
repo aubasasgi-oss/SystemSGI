@@ -371,7 +371,8 @@ const SectorMetrics = () => {
       case 'Gerencia de Operaciones':
       case 'Operaciones SPP':
       case 'Operaciones SVIA':
-      case 'Operaciones BALP': return 'operaciones_spp';
+      case 'Operaciones BALP':
+      case 'Operaciones ALP': return 'operaciones_spp';
       case 'CCM':
       case 'CCM Gestión Tránsito':
         return 'ccm_unificado';

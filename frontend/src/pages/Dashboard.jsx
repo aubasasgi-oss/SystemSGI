@@ -117,7 +117,7 @@ const Dashboard = () => {
       if (userSector === 'Operaciones SVIA') {
         setActiveGerencia('operaciones_spp');
         setOperacionesConcesion('SVIA');
-      } else if (userSector === 'Operaciones BALP') {
+      } else if (userSector === 'Operaciones BALP' || userSector === 'Operaciones ALP') {
         setActiveGerencia('operaciones_spp');
         setOperacionesConcesion('BALP');
       } else if (userSector === 'Gerencia Comercial') {
@@ -465,7 +465,7 @@ const Dashboard = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', width: '100%', maxWidth: '1000px', gap: '18px' }}>
           {[
             { key: 'comercial', label: 'GERENCIA COMERCIAL', Icon: Briefcase, sector: 'Gerencia Comercial' },
-            { key: 'operaciones_spp', label: 'OPERACIONES (BALP)', Icon: BarChart2, conc: 'BALP', sector: 'Operaciones BALP' },
+            { key: 'operaciones_spp', label: 'OPERACIONES (BALP / ALP)', Icon: BarChart2, conc: 'BALP', sector: 'Operaciones BALP' },
             { key: 'operaciones_svia', label: 'OPERACIONES (SVIA)', Icon: BarChart2, conc: 'SVIA', sector: 'Operaciones SVIA' },
             { key: 'asistencia', label: 'ASISTENCIA VIAL', Icon: Car, sector: 'Prevención y Seguridad Vial' },
             { key: 'ccm', label: 'CENTRO DE CONTROL Y MONITOREO', Icon: Monitor, sector: 'Centro de Control y Monitoreo' },
@@ -477,7 +477,7 @@ const Dashboard = () => {
           ].filter(item => {
             if (!userRole || userRole === 'SGI') return true;
             if (userSector === 'Operaciones SVIA') return item.key === 'operaciones_svia';
-            if (userSector === 'Operaciones BALP') return item.key === 'operaciones_spp';
+            if (userSector === 'Operaciones BALP' || userSector === 'Operaciones ALP') return item.key === 'operaciones_spp';
             return item.sector === userSector;
           }).map(({ key, label, Icon }, i) => (
             <button
@@ -1666,7 +1666,7 @@ const Dashboard = () => {
             <div style={{ flex: 1, textAlign: 'center', color: '#64748b', fontWeight: 900, fontSize: '18px', lineHeight: '1.2' }}>
               SISTEMA DE PERCEPCION<br/>DE PEAJE
               <div style={{ fontSize: '12px', color: '#0284c7', fontWeight: 800, marginTop: '2px', textTransform: 'uppercase' }}>
-                {operacionesConcesion === 'Todas' ? 'Consolidado General' : `Concesión ${operacionesConcesion}`}
+                {operacionesConcesion === 'Todas' ? 'Consolidado General' : `Concesión ${operacionesConcesion === 'BALP' ? 'BALP / ALP' : operacionesConcesion}`}
               </div>
             </div>
           </div>
@@ -1680,10 +1680,15 @@ const Dashboard = () => {
               <div style={{ display: 'flex', backgroundColor: '#0ea5e9', borderRadius: '4px', overflow: 'hidden', flex: 1 }}>
                 <div style={{ padding: '6px 14px', color: 'white', fontWeight: 700, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '85px' }}>Concesión</div>
                 <div style={{ display: 'flex', flex: 1 }}>
-                  {(userSector === 'Operaciones SVIA' ? ['SVIA'] : userSector === 'Operaciones BALP' ? ['BALP'] : ['Todas', 'BALP', 'SVIA']).map(c => (
+                  {(userSector === 'Operaciones SVIA' 
+                    ? ['SVIA'] 
+                    : (userSector === 'Operaciones BALP' || userSector === 'Operaciones ALP') 
+                    ? ['BALP'] 
+                    : ['Todas', 'BALP', 'SVIA']
+                  ).map(c => (
                     <button key={c} onClick={() => setOperacionesConcesion(c)}
                       style={{ flex: 1, padding: '6px 8px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '12px', background: operacionesConcesion === c ? '#334155' : '#93c5fd', color: operacionesConcesion === c ? 'white' : '#1e293b' }}>
-                      {c}
+                      {c === 'BALP' ? 'BALP / ALP' : c}
                     </button>
                   ))}
                 </div>
