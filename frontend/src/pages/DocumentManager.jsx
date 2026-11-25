@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Upload, CheckCircle, Edit, Edit3, Eye, FileSignature, AlertCircle, Image as ImageIcon, Folder, ArrowLeft, Copy, Plus, X, Trash2 } from 'lucide-react';
+import { FileText, Upload, CheckCircle, Edit, Edit3, Eye, FileSignature, AlertCircle, Image as ImageIcon, Folder, ArrowLeft, Copy, Plus, X, Trash2, MapPin } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import OnlyOfficeEditor from '../components/OnlyOfficeEditor';
+import DistribucionDocumentosView from '../components/DistribucionDocumentosView';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -286,6 +288,16 @@ export default function DocumentManager() {
   const [onlyOfficeDoc, setOnlyOfficeDoc] = useState(null);
   const [onlyOfficeModo, setOnlyOfficeModo] = useState('pdf');
   const previewRef = useRef(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [docSection, setDocSection] = useState(searchParams.get('tab') === 'distribucion' ? 'distribucion' : 'carpetas');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'distribucion') {
+      setDocSection('distribucion');
+    }
+  }, [searchParams]);
 
   // Folder state
   const [currentFolder, setCurrentFolder] = useState(null);
@@ -735,7 +747,9 @@ export default function DocumentManager() {
         <div>
           <h1 className="page-title">Gestor Documental (SGI)</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
-            {currentFolder ? (
+            {docSection === 'distribucion'
+              ? 'Control de distribución, receptores, ubicaciones físicas (trazas BALP y SVIA) y acuses de recibo (PAU/02-A2).'
+              : currentFolder ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary-color)' }}>
                 <span style={{ cursor: 'pointer' }} onClick={() => { setCurrentFolder(null); setCurrentSubFolder(null); }}>
                   <ArrowLeft size={14}/> Volver a Carpetas
@@ -751,16 +765,61 @@ export default function DocumentManager() {
             ) : "Navegación por carpetas y ciclo de revisiones oficiales."}
           </p>
         </div>
-        {isSGI && (
+        {isSGI && docSection === 'carpetas' && (
           <button className="btn btn-primary" style={{ height: 'fit-content' }} onClick={() => setCreateDocModal(true)}>
             <Plus size={16} /> Nuevo Documento
           </button>
         )}
       </div>
 
+      {/* TABS DE GESTOR DOCUMENTAL: CARPETAS VS DISTRIBUCIÓN Y UBICACIÓN */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <button
+          type="button"
+          onClick={() => { setDocSection('carpetas'); setSearchParams({}); }}
+          style={{
+            padding: '8px 18px',
+            borderRadius: '8px',
+            border: 'none',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: docSection === 'carpetas' ? '#0284c7' : '#f1f5f9',
+            color: docSection === 'carpetas' ? 'white' : '#475569'
+          }}
+        >
+          <Folder size={17} /> Archivos y Carpetas del SGI
+        </button>
 
-      <div className="glass table-container animate-fade-in delay-1" style={{ minHeight: '300px' }}>
-        {loading ? (
+        <button
+          type="button"
+          onClick={() => { setDocSection('distribucion'); setSearchParams({ tab: 'distribucion' }); }}
+          style={{
+            padding: '8px 18px',
+            borderRadius: '8px',
+            border: 'none',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: docSection === 'distribucion' ? '#0284c7' : '#f1f5f9',
+            color: docSection === 'distribucion' ? 'white' : '#475569'
+          }}
+        >
+          <MapPin size={17} /> Distribución y Ubicación de Documentos (PAU/02-A2)
+        </button>
+      </div>
+
+      {docSection === 'distribucion' ? (
+        <DistribucionDocumentosView />
+      ) : (
+        <div className="glass table-container animate-fade-in delay-1" style={{ minHeight: '300px' }}>
+          {loading ? (
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando documentos desde la nube...</div>
         ) : !currentFolder ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '16px' }}>
@@ -947,6 +1006,7 @@ export default function DocumentManager() {
           </div>
         )}
       </div>
+      )}
 
       {/* Modal Nuevo Documento */}
       {createDocModal && (
