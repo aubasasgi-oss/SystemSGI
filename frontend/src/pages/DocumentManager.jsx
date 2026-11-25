@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FileText, Upload, CheckCircle, Edit, Edit3, Eye, FileSignature, AlertCircle, Image as ImageIcon, Folder, ArrowLeft, Copy, Plus, X, Trash2, MapPin } from 'lucide-react';
+import { FileText, Upload, CheckCircle, Edit, Edit3, Eye, FileSignature, AlertCircle, Image as ImageIcon, Folder, FolderPlus, ArrowLeft, Copy, Plus, X, Trash2, MapPin } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import OnlyOfficeEditor from '../components/OnlyOfficeEditor';
 import DistribucionDocumentosView from '../components/DistribucionDocumentosView';
@@ -305,7 +305,65 @@ export default function DocumentManager() {
   
 
 
+  // Carpetas dinámicas
+  const [customFolders, setCustomFolders] = useState(() => {
+    try {
+      const s = localStorage.getItem('sgi_custom_folders_v1');
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [customSubFolders, setCustomSubFolders] = useState(() => {
+    try {
+      const s = localStorage.getItem('sgi_custom_subfolders_v1');
+      return s ? JSON.parse(s) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const allFolders = [...new Set([...PREDEFINED_FOLDERS, ...customFolders])];
+  
+  const getSubFoldersFor = (folder) => {
+    const predefined = SUB_FOLDERS[folder] || [];
+    const custom = customSubFolders[folder] || [];
+    return [...predefined, ...custom];
+  };
+
+  const [createFolderModal, setCreateFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderParent, setNewFolderParent] = useState('raiz');
+
   const getTodayString = () => new Date().toISOString().split('T')[0];
+
+  const handleCreateFolder = (e) => {
+    e.preventDefault();
+    const trimmed = newFolderName.trim();
+    if (!trimmed) return;
+
+    if (newFolderParent === 'raiz') {
+      if (!allFolders.includes(trimmed)) {
+        const updated = [...customFolders, trimmed];
+        setCustomFolders(updated);
+        localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(updated));
+      }
+    } else {
+      const existing = customSubFolders[newFolderParent] || [];
+      if (!existing.some(s => s.title.toLowerCase() === trimmed.toLowerCase())) {
+        const updated = {
+          ...customSubFolders,
+          [newFolderParent]: [...existing, { title: trimmed, date: getTodayString(), resp: 'SGI' }]
+        };
+        setCustomSubFolders(updated);
+        localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(updated));
+      }
+    }
+
+    setNewFolderName('');
+    setCreateFolderModal(false);
+  };
 
   // Formularios
   const [newDocForm, setNewDocForm] = useState({ title: '', code: '', folder_name: PREDEFINED_FOLDERS[0], sub_folder: '', version: 'Rev.01', date: getTodayString(), file: null });
@@ -684,12 +742,9 @@ export default function DocumentManager() {
       return doc.folder_name === currentSubFolder;
     }
 
-    // Si estamos en una carpeta principal SIN subcarpetas
-    if (!SUB_FOLDERS[currentFolder]) {
-      return doc.folder_name === currentFolder;
-    }
-
-    return false; // Si estamos en carpeta principal CON subcarpetas, no mostramos documentos sueltos.
+    // Si estamos en una carpeta principal:
+    // Muestra los documentos que pertenecen directamente a esta carpeta
+    return doc.folder_name === currentFolder;
   });
 
   const quillModules = {
@@ -766,9 +821,18 @@ export default function DocumentManager() {
           </p>
         </div>
         {isSGI && docSection === 'carpetas' && (
-          <button className="btn btn-primary" style={{ height: 'fit-content' }} onClick={() => setCreateDocModal(true)}>
-            <Plus size={16} /> Nuevo Documento
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button 
+              className="btn btn-secondary" 
+              style={{ height: 'fit-content', display: 'flex', alignItems: 'center', gap: '6px' }} 
+              onClick={() => setCreateFolderModal(true)}
+            >
+              <FolderPlus size={16} /> Nueva Carpeta
+            </button>
+            <button className="btn btn-primary" style={{ height: 'fit-content' }} onClick={() => setCreateDocModal(true)}>
+              <Plus size={16} /> Nuevo Documento
+            </button>
+          </div>
         )}
       </div>
 
@@ -823,13 +887,9 @@ export default function DocumentManager() {
           <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando documentos desde la nube...</div>
         ) : !currentFolder ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', padding: '16px' }}>
-            {PREDEFINED_FOLDERS.map(folder => {
-              // Las carpetas con subcarpetas (Procedimientos del Manual,
-              // Instrucciones de Trabajo) guardan los documentos con
-              // folder_name = título de la subcarpeta, no el de la carpeta
-              // padre — hay que sumarlos para que el conteo no dé siempre 0.
-              const nombresValidos = SUB_FOLDERS[folder] ? SUB_FOLDERS[folder].map(s => s.title) : [folder];
-              const cantidad = documents.filter(d => nombresValidos.includes(d.folder_name) && d.status !== 'Obsoleto').length;
+            {allFolders.map(folder => {
+              const nombresValidos = getSubFoldersFor(folder).length > 0 ? getSubFoldersFor(folder).map(s => s.title) : [folder];
+              const cantidad = documents.filter(d => (nombresValidos.includes(d.folder_name) || d.folder_name === folder) && d.status !== 'Obsoleto').length;
               return (
                 <div
                   key={folder}
@@ -858,57 +918,97 @@ export default function DocumentManager() {
                </div>
             )}
           </div>
-        ) : (!currentSubFolder && SUB_FOLDERS[currentFolder]) ? (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {SUB_FOLDERS[currentFolder].map(sub => (
-              <div 
-                key={sub.title} 
-                className="hover-row" 
-                onClick={() => setCurrentSubFolder(sub.title)}
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between', 
-                  padding: '12px 24px', 
-                  borderBottom: '1px solid var(--border-color)',
-                  transition: 'background-color 0.2s',
-                  cursor: 'pointer'
-                }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1', minWidth: '0' }}>
-                  <Folder size={20} color="#eab308" fill="#fef08a" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '14px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {sub.title}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : visibleDocuments.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            La carpeta "{currentSubFolder || currentFolder}" está vacía o no tiene documentos vigentes.
-          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {visibleDocuments.map(doc => {
-              const canAct = (doc.current_assignee === userSector || isSGI);
-              
+          (() => {
+            const currentSubFolders = !currentSubFolder ? getSubFoldersFor(currentFolder) : [];
+            const hasSubFolders = currentSubFolders.length > 0;
+            const hasDocuments = visibleDocuments.length > 0;
+
+            if (!hasSubFolders && !hasDocuments) {
               return (
-                <div key={doc.id} className="hover-row" style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between', 
-                  padding: '12px 24px', 
-                  borderBottom: '1px solid var(--border-color)',
-                  transition: 'background-color 0.2s',
-                  cursor: 'default'
-                }}>
-                  {/* Izquierda: Icono y Título */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1', minWidth: '0' }}>
-                    <Folder size={20} color="#eab308" fill="#fef08a" style={{ flexShrink: 0 }} />
-                    <span style={{ fontSize: '14px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {doc.code} {doc.title}
+                <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <Folder size={48} color="#94a3b8" style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
+                  <h4 style={{ margin: '0 0 6px 0', color: 'var(--text-primary)' }}>Carpeta vacía</h4>
+                  <p style={{ margin: 0, fontSize: '13px' }}>
+                    La carpeta "{currentSubFolder || currentFolder}" no contiene subcarpetas ni documentos vigentes.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* 1. SUBCARPETAS (Con icono de carpeta 📁) */}
+                {hasSubFolders && currentSubFolders.map(sub => (
+                  <div 
+                    key={sub.title} 
+                    className="hover-row" 
+                    onClick={() => setCurrentSubFolder(sub.title)}
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between', 
+                      padding: '14px 24px', 
+                      borderBottom: '1px solid var(--border-color)',
+                      transition: 'background-color 0.2s',
+                      cursor: 'pointer'
+                    }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1', minWidth: '0' }}>
+                      <Folder size={22} color="#eab308" fill="#fef08a" style={{ flexShrink: 0 }} />
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {sub.title}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                          Carpeta de documentos
+                        </span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Abrir carpeta ➔
                     </span>
                   </div>
+                ))}
+
+                {/* 2. DOCUMENTOS / ARCHIVOS (Con icono de archivo 📄) */}
+                {visibleDocuments.map(doc => {
+                  const canAct = (doc.current_assignee === userSector || isSGI);
+                  
+                  return (
+                    <div key={doc.id} className="hover-row" style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between', 
+                      padding: '12px 24px', 
+                      borderBottom: '1px solid var(--border-color)',
+                      transition: 'background-color 0.2s',
+                      cursor: 'default'
+                    }}>
+                      {/* Izquierda: Icono de Archivo y Título */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1', minWidth: '0' }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          backgroundColor: doc.pdf_url ? '#fef2f2' : '#f0f9ff',
+                          color: doc.pdf_url ? '#dc2626' : '#0284c7',
+                          border: `1px solid ${doc.pdf_url ? '#fecaca' : '#bae6fd'}`,
+                          flexShrink: 0
+                        }}>
+                          <FileText size={18} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: '0' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {doc.code} {doc.title}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {doc.version || 'Rev.01'} • Archivo Documental SGI
+                          </span>
+                        </div>
+                      </div>
 
                   {/* Centro-Derecha: Fecha y Asignado */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '64px', margin: '0 32px', flexShrink: 0 }}>
@@ -1004,8 +1104,75 @@ export default function DocumentManager() {
               );
             })}
           </div>
-        )}
+        );
+      })())}
       </div>
+      )}
+
+      {/* Modal Nueva Carpeta */}
+      {createFolderModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div className="glass animate-fade-in" style={{ width: '450px', padding: '24px', borderRadius: '12px', background: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FolderPlus size={22} color="#eab308" />
+                <h3 style={{ margin: 0, color: 'var(--text-primary)' }}>Crear Nueva Carpeta</h3>
+              </div>
+              <button 
+                onClick={() => setCreateFolderModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateFolder}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px', fontWeight: 600, color: 'var(--text-secondary)' }}>Ubicación</label>
+                  <select
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-primary)' }}
+                    value={newFolderParent}
+                    onChange={(e) => setNewFolderParent(e.target.value)}
+                  >
+                    <option value="raiz">Carpeta Principal (en la raíz)</option>
+                    {allFolders.map(f => (
+                      <option key={f} value={f}>Subcarpeta dentro de "{f}"</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px', fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre de la Carpeta</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ej: Manual de Gestión, Anexos, Registros..."
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setCreateFolderModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  Crear Carpeta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Modal Nuevo Documento */}
@@ -1022,17 +1189,18 @@ export default function DocumentManager() {
                   value={newDocForm.folder_name}
                   onChange={(e) => {
                     const newFolder = e.target.value;
-                    const defaultSub = SUB_FOLDERS[newFolder] ? SUB_FOLDERS[newFolder][0].title : '';
+                    const subs = getSubFoldersFor(newFolder);
+                    const defaultSub = subs.length > 0 ? subs[0].title : '';
                     setNewDocForm({...newDocForm, folder_name: newFolder, sub_folder: defaultSub});
                   }}
                 >
-                  {PREDEFINED_FOLDERS.map(f => (
+                  {allFolders.map(f => (
                     <option key={f} value={f}>{f}</option>
                   ))}
                 </select>
               </div>
 
-              {SUB_FOLDERS[newDocForm.folder_name] && (
+              {getSubFoldersFor(newDocForm.folder_name).length > 0 && (
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Sub-Carpeta</label>
                   <select 
@@ -1040,7 +1208,8 @@ export default function DocumentManager() {
                     value={newDocForm.sub_folder}
                     onChange={(e) => setNewDocForm({...newDocForm, sub_folder: e.target.value})}
                   >
-                    {SUB_FOLDERS[newDocForm.folder_name].map(sub => (
+                    <option value="">(Ninguna / Raíz de la carpeta)</option>
+                    {getSubFoldersFor(newDocForm.folder_name).map(sub => (
                       <option key={sub.title} value={sub.title}>{sub.title}</option>
                     ))}
                   </select>
