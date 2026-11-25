@@ -305,7 +305,7 @@ export default function DocumentManager() {
   
 
 
-  // Carpetas dinámicas
+  // Carpetas dinámicas sincronizadas con Supabase en la nube
   const [customFolders, setCustomFolders] = useState(() => {
     try {
       const s = localStorage.getItem('sgi_custom_folders_v1');
@@ -338,28 +338,80 @@ export default function DocumentManager() {
 
   const getTodayString = () => new Date().toISOString().split('T')[0];
 
-  const handleCreateFolder = (e) => {
+  // Sincronizar carpetas en Supabase para que sean visibles por Gisela y todo el equipo
+  const persistFoldersCloud = async (folders, subFolders) => {
+    try {
+      await supabase
+        .from('sgi_management_reviews')
+        .upsert({
+          id: 'CONFIG_SGI_FOLDERS',
+          year: '2026',
+          status: 'Activo',
+          date: new Date().toISOString().split('T')[0],
+          participants: 'SGI Global',
+          data: {
+            customFolders: folders,
+            customSubFolders: subFolders,
+            updated_at: new Date().toISOString()
+          },
+          updated_at: new Date().toISOString()
+        });
+    } catch (err) {
+      console.warn('Error sincronizando carpetas en la nube:', err);
+    }
+  };
+
+  const fetchFolderConfig = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sgi_management_reviews')
+        .select('data')
+        .eq('id', 'CONFIG_SGI_FOLDERS')
+        .maybeSingle();
+
+      if (!error && data?.data) {
+        if (Array.isArray(data.data.customFolders)) {
+          setCustomFolders(data.data.customFolders);
+          localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(data.data.customFolders));
+        }
+        if (data.data.customSubFolders && typeof data.data.customSubFolders === 'object') {
+          setCustomSubFolders(data.data.customSubFolders);
+          localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(data.data.customSubFolders));
+        }
+      }
+    } catch (err) {
+      console.warn('Error leyendo carpetas compartidas desde Supabase:', err);
+    }
+  };
+
+  const handleCreateFolder = async (e) => {
     e.preventDefault();
     const trimmed = newFolderName.trim();
     if (!trimmed) return;
 
+    let updatedFolders = [...customFolders];
+    let updatedSubFolders = { ...customSubFolders };
+
     if (newFolderParent === 'raiz') {
       if (!allFolders.includes(trimmed)) {
-        const updated = [...customFolders, trimmed];
-        setCustomFolders(updated);
-        localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(updated));
+        updatedFolders = [...customFolders, trimmed];
+        setCustomFolders(updatedFolders);
+        localStorage.setItem('sgi_custom_folders_v1', JSON.stringify(updatedFolders));
       }
     } else {
       const existing = customSubFolders[newFolderParent] || [];
       if (!existing.some(s => s.title.toLowerCase() === trimmed.toLowerCase())) {
-        const updated = {
+        updatedSubFolders = {
           ...customSubFolders,
           [newFolderParent]: [...existing, { title: trimmed, date: getTodayString(), resp: 'SGI' }]
         };
-        setCustomSubFolders(updated);
-        localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(updated));
+        setCustomSubFolders(updatedSubFolders);
+        localStorage.setItem('sgi_custom_subfolders_v1', JSON.stringify(updatedSubFolders));
       }
     }
+
+    // Persistir en Supabase para que toda la organización (Gisela, Sergio, etc.) lo vea
+    await persistFoldersCloud(updatedFolders, updatedSubFolders);
 
     setNewFolderName('');
     setCreateFolderModal(false);
@@ -371,6 +423,7 @@ export default function DocumentManager() {
 
   useEffect(() => {
     fetchDocuments();
+    fetchFolderConfig();
   }, []);
 
   const fetchDocuments = async () => {
